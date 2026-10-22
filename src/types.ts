@@ -1,6 +1,6 @@
 export type Severity = 'high' | 'medium' | 'low';
 export type Category = 'succulents' | 'tropicals' | 'citrus' | 'vegetables';
-export type TabId = 0 | 1 | 2 | 3;
+export type TabId = 0 | 1 | 2 | 3 | 4;
 
 export interface Watering {
   summer: string;

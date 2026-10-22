@@ -1,8 +1,27 @@
 import {
   DesertRoseIcon, JadePlantIcon, IrishRoseIcon,
-  HouseleekIcon, MandarinIcon, TomatoIcon, TradescantiaIcon
+  HouseleekIcon, MandarinIcon, TomatoIcon, TradescantiaIcon,
 } from './icons';
-import type { Plant, CategoryDef } from './types';
+import type { CategoryDef, Plant, Severity, TabId } from './types';
+export const SOIL_OPTIONS = [
+  'General',
+  'Farmland',
+  'Succulent',
+  'Succulent with Perlite',
+  'Citrus',
+  'Orchid',
+  'Bonsai',
+  'Cactus',
+  'Bromeliad',
+  'Carnivorous',
+  'African violet',
+  'Seed starting',
+  'Hydroponic',
+];
+
+export const POT_TYPE_OPTIONS = ['Planter', 'Round', 'Squared', 'Custom'];
+
+export const POT_MATERIAL_OPTIONS = ['Ceramic', 'Plastic', 'Terracotta', 'Recycled wood'];
 
 export const CATEGORIES: CategoryDef[] = [
   { id: 'succulents', label: 'Succulents',             emoji: '🌵', color: '#4A8C3A', bg: 'linear-gradient(135deg,#E8F5E0,#D0EBC0)' },
@@ -380,3 +399,34 @@ export const PLANTS: Plant[] = [
     ],
   },
 ];
+
+export const TABS: { id: TabId; label: string }[] = [
+  { id: 0, label: '🪴 Setup' },
+  { id: 1, label: '🌿 Care' },
+  { id: 2, label: '🧪 Fertilizer' },
+  { id: 3, label: '✨ Tricks' },
+  { id: 4, label: '🩺 Diseases' },
+];
+
+export const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+
+export const SEVERITY_CONFIG: Record<Severity, { color: string; bg: string; border: string; label: string }> = {
+  high: { color: '#C04040', bg: '#FFF0F0', border: '#FFCCCC', label: '🔴 Urgent' },
+  medium: { color: '#B06010', bg: '#FFF8E8', border: '#FFD080', label: '🟡 Attention' },
+  low: { color: '#2A6A3A', bg: '#F0FAF2', border: '#A8D8B0', label: '🟢 Minor' },
+};
+
+const createSizeOptions = (min: number, max: number, step: number) => {
+  if (step <= 0 || max < min) return [];
+  const precision = Math.max(...[min, max, step].map(value => `${value}`.split('.')[1]?.length ?? 0));
+  const options: { value: string; label: string }[] = [];
+  for (let index = 0; ; index += 1) {
+    const size = Number((min + index * step).toFixed(precision));
+    if (size > max + Number.EPSILON) break;
+    const label = `${size} cm`;
+    options.push({ value: label, label });
+  }
+  return options;
+};
+
+export const POT_SIZE_OPTIONS = createSizeOptions(6, 20, 0.5);
