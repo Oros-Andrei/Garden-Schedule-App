@@ -1,8 +1,8 @@
 import {
   DesertRoseIcon, JadePlantIcon, IrishRoseIcon,
   HouseleekIcon, MandarinIcon, TomatoIcon, TradescantiaIcon,
-} from './icons';
-import type { CategoryDef, Plant, Severity, TabId } from './types';
+} from './Icons';
+import type { CategoryDef, Plant, Severity, TabId } from './Types';
 export const SOIL_OPTIONS = [
   'General',
   'Farmland',

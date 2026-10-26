@@ -1,6 +1,6 @@
 import React from 'react';
-import type { Plant } from '../types';
-import { POT_MATERIAL_OPTIONS, POT_SIZE_OPTIONS, POT_TYPE_OPTIONS, SOIL_OPTIONS } from '../Constants';
+import type { Plant } from '../Resources/Types';
+import { POT_MATERIAL_OPTIONS, POT_SIZE_OPTIONS, POT_TYPE_OPTIONS, SOIL_OPTIONS } from '../Resources/Constants';
 import Button from '../Components/Button';
 import DatePicker from '../Components/DatePicker';
 import Dropdown from '../Components/Dropdown';

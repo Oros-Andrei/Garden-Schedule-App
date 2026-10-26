@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Plant } from '../types';
+import type { Plant } from '../Resources/Types';
 
 const NPKBar: React.FC<{ label: string; value: number; max: number; color: string }> = ({ label, value, max, color }) => (
   <div style={{ marginBottom: 6 }}>

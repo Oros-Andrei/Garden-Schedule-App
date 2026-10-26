@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Plant } from '../types';
+import type { Plant } from '../Resources/Types';
 
 const WaterDroplet: React.FC<{ ml: number; maxMl?: number; color: string; accent: string }> = ({ ml, maxMl = 1000, color, accent }) => {
   const pct = Math.min(ml / maxMl, 1);

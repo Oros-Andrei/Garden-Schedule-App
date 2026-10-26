@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { SEVERITY_CONFIG } from '../Constants';
-import type { Disease, Plant } from '../types';
+import { SEVERITY_CONFIG } from '../Resources/Constants';
+import type { Disease, Plant } from '../Resources/Types';
 
 const DiseaseCard: React.FC<{ disease: Disease; accent: string }> = ({ disease, accent }) => {
   const [open, setOpen] = useState(false);

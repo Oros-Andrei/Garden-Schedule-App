@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { WEEKDAYS } from '../Constants';
+import { WEEKDAYS } from '../Resources/Constants';
 
 interface DatePickerProps {
   value: string;

@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Plant } from '../types';
+import type { Plant } from '../Resources/Types';
 
 const TricksTab: React.FC<{ plant: Plant }> = ({ plant }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
