@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CATEGORIES, PLANTS } from './Resources/Constants';
-import type { GardenData, PlantSetup, SavedPlant } from './Resources/GardenData';
+import type { CareEvent, GardenData, PlantSetup, SavedPlant } from './Resources/GardenData';
+import GardenCalendar from './Components/GardenCalendar';
 import PlantDetail from './Components/PlantDetail';
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
@@ -24,26 +25,30 @@ const App: React.FC = () => {
     const plants: SavedPlant[] = PLANTS.flatMap(plant => {
       let savedSetup: Partial<PlantSetup> = {};
       let savedSoil: string | null = null;
+      let careEvents: CareEvent[] = [];
       try {
         const setupValue = localStorage.getItem(`garden-setup-${plant.id}`);
         if (setupValue) savedSetup = JSON.parse(setupValue) as Partial<PlantSetup>;
         savedSoil = localStorage.getItem(`garden-soil-${plant.id}`);
+        const careValue = localStorage.getItem(`garden-care-events-${plant.id}`);
+        if (careValue) careEvents = JSON.parse(careValue) as CareEvent[];
       } catch {
         // Skip malformed browser records; the original browser data remains untouched.
         return [];
       }
 
-      if (!Object.keys(savedSetup).length && !savedSoil) return [];
+      if (!Object.keys(savedSetup).length && !savedSoil && careEvents.length === 0) return [];
 
       const setup: PlantSetup = {
         substrate: typeof savedSetup.substrate === 'string' ? savedSetup.substrate : savedSoil ?? 'General',
         potType: typeof savedSetup.potType === 'string' ? savedSetup.potType : 'Custom',
         potMaterial: typeof savedSetup.potMaterial === 'string' ? savedSetup.potMaterial : plant.pot,
         potSize: typeof savedSetup.potSize === 'string' ? savedSetup.potSize : plant.potSize,
+        pottedOn: typeof savedSetup.pottedOn === 'string' ? savedSetup.pottedOn : '',
         repotted: typeof savedSetup.repotted === 'string' ? savedSetup.repotted : '',
       };
 
-      return [{ id: plant.id, name: plant.name, source: 'built-in', setup, photo: null, icon: null }];
+      return [{ id: plant.id, name: plant.name, source: 'built-in', setup, careEvents, photo: null, icon: null }];
     });
 
     return { formatVersion: 1, plants };
@@ -94,16 +99,21 @@ const App: React.FC = () => {
       minHeight: '100vh',
     }}>
       <style>{`
+        html { scrollbar-gutter: stable; }
         @media (min-width: 800px) {
           .garden-layout { display: flex !important; align-items: flex-start; gap: 24px; padding: 0 32px 32px !important; width: 100%; max-width: none !important; }
           .garden-sidebar { width: 40%; min-width: 320px; max-width: 560px; flex-shrink: 0; padding-top: 0 !important; }
           .garden-plant-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
           .garden-detail  { flex: 1; min-width: 0; margin: 0 !important; position: sticky; top: 20px; }
-          .garden-empty   { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 400px; }
+          .garden-empty   { flex: 1; min-width: 0; min-height: 400px; }
         }
         @media (max-width: 799px) {
           .garden-detail  { margin: 16px 14px 28px !important; }
-          .garden-empty   { display: none !important; }
+          .garden-empty   { display: block !important; margin: 16px 14px 28px; }
+        }
+        .setup-calendar-layout { display: grid; grid-template-columns: 1fr; gap: 20px; align-items: start; }
+        @media (min-width: 800px) {
+          .setup-calendar-layout { grid-template-columns: minmax(320px, 35fr) minmax(0, 65fr); align-items: center; }
         }
         .setup-grid { display: grid; grid-template-columns: max-content minmax(0, 1fr); column-gap: 10px; row-gap: 14px; align-items: center; }
         @media (max-width: 480px) {
@@ -113,9 +123,6 @@ const App: React.FC = () => {
 
       {/* ── Header ── */}
       <div style={{ textAlign: 'center', padding: '28px 20px 18px' }}>
-        <div style={{ fontSize: 14, letterSpacing: 4, textTransform: 'uppercase', color: '#7A9A6A', marginBottom: 6 }}>
-          Andrei's Garden
-        </div>
         <h1 style={{ fontSize: 26, color: '#2A4A1A', margin: 0 }}>Plant Care Guide</h1>
         <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
           <button type="button" onClick={exportGardenData} style={{ cursor: 'pointer', border: '1px solid #B8D0A8', borderRadius: 8, background: '#FFFFFFCC', color: '#3A5A2A', padding: '6px 10px', font: 'inherit', fontSize: 13 }}>
@@ -206,12 +213,7 @@ const App: React.FC = () => {
           </div>
         ) : (
           <div className="garden-empty">
-            <div style={{ textAlign: 'center', opacity: 0.4 }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>🌿</div>
-              <div style={{ fontSize: 14, color: '#3A5A2A', fontStyle: 'italic' }}>
-                Select a plant to see its care details
-              </div>
-            </div>
+            <GardenCalendar />
           </div>
         )}
 

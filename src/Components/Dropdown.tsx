@@ -93,13 +93,6 @@ const Dropdown: React.FC<DropdownProps> = ({
             boxShadow: '0 8px 22px rgba(35,65,25,0.16)',
           }}
         >
-          {placeholder && (
-            <button
-              type="button" role="option" aria-selected={value === ''}
-              onClick={() => { onChange(''); setOpen(false); }}
-              style={optionStyle(value === '', accent)}
-            >{placeholder}</button>
-          )}
           {options.map(option => (
             <button
               type="button" role="option" aria-selected={value === option.value}

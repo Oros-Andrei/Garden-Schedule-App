@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { SEVERITY_CONFIG } from '../Resources/Constants';
+import { Emoji } from '../Resources/Emoji';
 import type { Disease, Plant } from '../Resources/Types';
 
 const DiseaseCard: React.FC<{ disease: Disease; accent: string }> = ({ disease, accent }) => {
@@ -20,17 +21,17 @@ const DiseaseCard: React.FC<{ disease: Disease; accent: string }> = ({ disease, 
           <span style={{ fontSize: 14, fontWeight: 700, color: severity.color, background: severity.bg, border: `1px solid ${severity.border}`, borderRadius: 20, padding: '2px 7px', whiteSpace: 'nowrap' }}>
             {severity.label}
           </span>
-          <span style={{ fontSize: 14, color: accent, transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s', display: 'inline-block' }}>▾</span>
+          <span style={{ fontSize: 14, color: accent, transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s', display: 'inline-block' }}>{Emoji.chevronDown}</span>
         </div>
       </div>
       {open && (
         <div style={{ marginTop: 10 }}>
           <div style={{ marginBottom: 8 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, color: '#7A6A2A', marginBottom: 3 }}>🔍 Cause</div>
+            <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, color: '#7A6A2A', marginBottom: 3 }}>{Emoji.magnifyingGlass} Cause</div>
             <div style={{ fontSize: 14, color: '#5A4A1A', lineHeight: 1.5 }}>{disease.cause}</div>
           </div>
           <div style={{ background: 'rgba(255,255,255,0.8)', borderRadius: 10, padding: '9px 12px', borderLeft: `3px solid ${accent}` }}>
-            <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, color: accent, marginBottom: 4 }}>💊 How to Fix</div>
+            <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, color: accent, marginBottom: 4 }}>{Emoji.pill} How to Fix</div>
             <div style={{ fontSize: 14, color: '#2A4A1A', lineHeight: 1.55 }}>{disease.fix}</div>
           </div>
         </div>

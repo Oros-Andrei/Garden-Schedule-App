@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { TABS } from '../Resources/Constants';
-import type { PlantSetup } from '../Resources/GardenData';
+import { Emoji } from '../Resources/Emoji';
+import { PLANTS, TABS } from '../Resources/Constants';
+import type { CalendarCareEvent, CareEvent, PlantSetup } from '../Resources/GardenData';
 import type { Plant, TabId } from '../Resources/Types';
 import CareTab from '../Tabs/CareTab';
 import DiseasesTab from '../Tabs/DiseasesTab';
@@ -13,11 +14,76 @@ interface PlantDetailProps {
   onClose: () => void;
 }
 
+const syncPottingEvents = (events: CalendarCareEvent[], plantId: string, plantName: string, setup: PlantSetup): CalendarCareEvent[] => {
+  const otherEvents = events.filter(item => item.plantId !== plantId ||
+    (item.event.type !== 'potted' && item.event.type !== 'repotted'));
+  const pottingEvents: CalendarCareEvent[] = [];
+  if (setup.pottedOn) pottingEvents.push({
+    plantId, plantName,
+    event: { id: `potted-${setup.pottedOn}`, type: 'potted', date: setup.pottedOn, potMaterial: setup.potMaterial, substrate: setup.substrate },
+  });
+  if (setup.repotted) pottingEvents.push({
+    plantId, plantName,
+    event: { id: `repotted-${setup.repotted}`, type: 'repotted', date: setup.repotted, potMaterial: setup.potMaterial, substrate: setup.substrate },
+  });
+  return [...otherEvents, ...pottingEvents];
+};
+
 const PlantDetail: React.FC<PlantDetailProps> = ({ plant, onClose }) => {
   const [tab, setTab] = useState<TabId>(0);
   const [setup, setSetup] = useState<PlantSetup>(() => loadPlantSetup(plant));
   const [editingSetup, setEditingSetup] = useState(false);
   const [setupDraft, setSetupDraft] = useState<PlantSetup>(setup);
+  const [careEvents, setCareEvents] = useState<CalendarCareEvent[]>(() => PLANTS.flatMap(savedPlant => {
+    try {
+      const saved = localStorage.getItem(`garden-care-events-${savedPlant.id}`);
+      const parsed: unknown = saved ? JSON.parse(saved) : [];
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter((event): event is CareEvent =>
+        event && typeof event === 'object' &&
+        ['watering', 'fertilizing', 'potted', 'repotted'].includes((event as CareEvent).type) &&
+        typeof (event as CareEvent).date === 'string' && typeof (event as CareEvent).id === 'string')
+        .map(event => ({ plantId: savedPlant.id, plantName: savedPlant.name, event }));
+    } catch { return []; }
+  }));
+
+  const logCareEvent = async (plantId: string, event: CareEvent) => {
+    const selectedPlant = PLANTS.find(item => item.id === plantId);
+    if (!selectedPlant) return;
+    const updatedEvents = [
+      ...careEvents.filter(item => !(item.plantId === plantId && item.event.type === event.type &&
+        ((event.type === 'potted' || event.type === 'repotted') || item.event.date === event.date))),
+      { plantId, plantName: selectedPlant.name, event },
+    ];
+    setCareEvents(updatedEvents);
+    try {
+      const plantEvents = updatedEvents.filter(item => item.plantId === plantId).map(item => item.event);
+      localStorage.setItem(`garden-care-events-${plantId}`, JSON.stringify(plantEvents));
+    } catch { /* Keep the event visible for this session if browser storage is unavailable. */ }
+
+    if (event.type === 'potted' || event.type === 'repotted') {
+      const existingSetup = loadPlantSetup(selectedPlant);
+      const updatedSetup: PlantSetup = {
+        ...existingSetup,
+        potMaterial: event.potMaterial ?? existingSetup.potMaterial,
+        substrate: event.substrate ?? existingSetup.substrate,
+        ...(event.type === 'potted' ? { pottedOn: event.date } : { repotted: event.date }),
+      };
+      try { localStorage.setItem(`garden-setup-${plantId}`, JSON.stringify(updatedSetup)); }
+      catch { /* Keep the event visible for this session if browser storage is unavailable. */ }
+      if (plantId === plant.id) {
+        setSetup(updatedSetup);
+        setSetupDraft(updatedSetup);
+      }
+    }
+
+    try {
+      await window.gardenDesktop?.logCareEvent({ id: plantId, name: selectedPlant.name, event });
+    } catch (error) {
+      console.error('Unable to save the care event to the garden data file.', error);
+      window.alert('The event is visible for this session, but could not be saved to the garden data file.');
+    }
+  };
 
   const saveSetup = async () => {
     const updatedSetup = {
@@ -26,8 +92,13 @@ const PlantDetail: React.FC<PlantDetailProps> = ({ plant, onClose }) => {
       potSize: setupDraft.potSize.trim(),
     };
     setSetup(updatedSetup);
+    const updatedEvents = syncPottingEvents(careEvents, plant.id, plant.name, updatedSetup);
+    setCareEvents(updatedEvents);
     try {
       localStorage.setItem(`garden-setup-${plant.id}`, JSON.stringify(updatedSetup));
+      localStorage.setItem(`garden-care-events-${plant.id}`, JSON.stringify(
+        updatedEvents.filter(item => item.plantId === plant.id).map(item => item.event),
+      ));
     } catch { /* Keep the edits for this session if browser storage is unavailable. */ }
 
     try {
@@ -58,10 +129,10 @@ const PlantDetail: React.FC<PlantDetailProps> = ({ plant, onClose }) => {
           <div style={{ fontSize: 14, color: '#5A7A4A', fontStyle: 'italic', marginTop: 1 }}>{plant.latin}</div>
           <div style={{ display: 'flex', gap: 5, marginTop: 6, flexWrap: 'wrap' }}>
             <span style={{ background: 'rgba(255,255,255,0.7)', borderRadius: 20, padding: '2px 8px', fontSize: 14, color: '#4A6A3A' }}>
-              🏺 {setup.potType}
+              {Emoji.amphora} {setup.potType}
             </span>
             <span style={{ background: 'rgba(255,255,255,0.7)', borderRadius: 20, padding: '2px 8px', fontSize: 14, color: '#4A6A3A' }}>
-              📏 {setup.potSize}
+              {Emoji.ruler} {setup.potSize}
             </span>
           </div>
         </div>
@@ -76,7 +147,7 @@ const PlantDetail: React.FC<PlantDetailProps> = ({ plant, onClose }) => {
             borderRadius: '50%', background: 'rgba(255,255,255,0.75)',
             color: '#4A5A3A', fontSize: 22, lineHeight: 1, cursor: 'pointer',
           }}
-        >×</button>
+        >{Emoji.close}</button>
       </div>
 
       <div style={{ display: 'flex', borderBottom: '1.5px solid #E8F0E0' }}>
@@ -106,6 +177,9 @@ const PlantDetail: React.FC<PlantDetailProps> = ({ plant, onClose }) => {
             onChange={changes => setSetupDraft(current => ({ ...current, ...changes }))}
             onSave={saveSetup}
             onCancel={() => setEditingSetup(false)}
+            careEvents={careEvents}
+            plants={PLANTS}
+            onLogCareEvent={logCareEvent}
           />
         )}
         {tab === 1 && <CareTab plant={plant} />}

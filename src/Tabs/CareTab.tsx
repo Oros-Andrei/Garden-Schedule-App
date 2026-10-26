@@ -1,4 +1,5 @@
 import React from 'react';
+import { Emoji } from '../Resources/Emoji';
 import type { Plant } from '../Resources/Types';
 
 const WaterDroplet: React.FC<{ ml: number; maxMl?: number; color: string; accent: string }> = ({ ml, maxMl = 1000, color, accent }) => {
@@ -28,40 +29,40 @@ const CareTab: React.FC<{ plant: Plant }> = ({ plant }) => (
   <div>
     {plant.details.warning && (
       <div style={{ background: '#FFF8E8', border: '1.5px solid #FFD080', borderRadius: 12, padding: '9px 13px', marginBottom: 13, fontSize: 14, color: '#7A5010' }}>
-        ⚠️ {plant.details.warning}
+        {Emoji.warning} {plant.details.warning}
       </div>
     )}
     <div style={{ marginBottom: 13 }}>
-      <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, color: plant.accent, marginBottom: 10 }}>💧 Watering</div>
+      <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, color: plant.accent, marginBottom: 10 }}>{Emoji.droplet} Watering</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <div style={{ background: '#F0F9FF', borderRadius: 14, padding: '12px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, color: '#4A8AAA', marginBottom: 2 }}>☀️ Summer</div>
+          <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, color: '#4A8AAA', marginBottom: 2 }}>{Emoji.sun} Summer</div>
           <WaterDroplet ml={plant.details.watering.summerMl} maxMl={1000} color="#7BBFDF" accent="#3A80AA" />
           <div style={{ fontSize: 14, color: '#2A5A7A', textAlign: 'center', lineHeight: 1.4 }}>{plant.details.watering.summer}</div>
         </div>
         <div style={{ background: '#F0F4FF', borderRadius: 14, padding: '12px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, color: '#5A5AAA', marginBottom: 2 }}>❄️ Winter</div>
+          <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, color: '#5A5AAA', marginBottom: 2 }}>{Emoji.snowflake} Winter</div>
           <WaterDroplet ml={plant.details.watering.winterMl} maxMl={1000} color="#9090D0" accent="#4A4A9A" />
           <div style={{ fontSize: 14, color: '#2A2A6A', textAlign: 'center', lineHeight: 1.4 }}>{plant.details.watering.winter}</div>
         </div>
       </div>
       <div style={{ background: '#F0F7E8', border: '1px solid #C8E0B0', borderRadius: 10, padding: '7px 12px', marginTop: 8, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
-        <span style={{ fontSize: 14, flexShrink: 0 }}>💡</span>
+        <span style={{ fontSize: 14, flexShrink: 0 }}>{Emoji.lightBulb}</span>
         <span style={{ fontSize: 14, color: '#3A6A2A', lineHeight: 1.5 }}>Amounts are per session based on pot size. The most reliable method: <strong>water until it drains from the bottom</strong>, then don't water again until the soil is dry.</span>
       </div>
     </div>
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9, marginBottom: 13 }}>
       <div style={{ background: '#FFF9F0', borderRadius: 10, padding: '9px 11px' }}>
-        <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, color: plant.accent, marginBottom: 3 }}>☀️ Light</div>
+        <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, color: plant.accent, marginBottom: 3 }}>{Emoji.sun} Light</div>
         <div style={{ fontSize: 14, color: '#3A5A2A' }}>{plant.details.light}</div>
       </div>
       <div style={{ background: '#F0F8FF', borderRadius: 10, padding: '9px 11px' }}>
-        <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, color: plant.accent, marginBottom: 3 }}>🌡️ Temp</div>
+        <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, color: plant.accent, marginBottom: 3 }}>{Emoji.thermometer} Temp</div>
         <div style={{ fontSize: 14, color: '#3A5A2A' }}>{plant.details.temp}</div>
       </div>
     </div>
     <div>
-      <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, color: plant.accent, marginBottom: 7 }}>📋 Care Notes</div>
+      <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, color: plant.accent, marginBottom: 7 }}>{Emoji.clipboard} Care Notes</div>
       {plant.details.tips.map((tip, index) => (
         <div key={index} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 14, color: '#3A5A2A', marginBottom: 5 }}>
           <span style={{ color: plant.accent, flexShrink: 0 }}>→</span><span>{tip}</span>

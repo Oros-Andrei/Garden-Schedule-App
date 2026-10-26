@@ -2,6 +2,7 @@ import {
   DesertRoseIcon, JadePlantIcon, IrishRoseIcon,
   HouseleekIcon, MandarinIcon, TomatoIcon, TradescantiaIcon,
 } from './Icons';
+import { Emoji } from './Emoji';
 import type { CategoryDef, Plant, Severity, TabId } from './Types';
 export const SOIL_OPTIONS = [
   'General',
@@ -24,10 +25,10 @@ export const POT_TYPE_OPTIONS = ['Planter', 'Round', 'Squared', 'Custom'];
 export const POT_MATERIAL_OPTIONS = ['Ceramic', 'Plastic', 'Terracotta', 'Recycled wood'];
 
 export const CATEGORIES: CategoryDef[] = [
-  { id: 'succulents', label: 'Succulents',             emoji: '🌵', color: '#4A8C3A', bg: 'linear-gradient(135deg,#E8F5E0,#D0EBC0)' },
-  { id: 'tropicals',  label: 'Tropicals & Houseplants',emoji: '🌺', color: '#8B3A7A', bg: 'linear-gradient(135deg,#FAF0F8,#EDD8EA)' },
-  { id: 'citrus',     label: 'Citrus',                 emoji: '🍊', color: '#C07010', bg: 'linear-gradient(135deg,#FFF3D0,#FFE090)' },
-  { id: 'vegetables', label: 'Vegetables & Edibles',   emoji: '🍅', color: '#C03020', bg: 'linear-gradient(135deg,#FFE8E0,#FFCCC0)' },
+  { id: 'succulents', label: 'Succulents',             emoji: Emoji.cactus, color: '#4A8C3A', bg: 'linear-gradient(135deg,#E8F5E0,#D0EBC0)' },
+  { id: 'tropicals',  label: 'Tropicals & Houseplants',emoji: Emoji.hibiscus, color: '#8B3A7A', bg: 'linear-gradient(135deg,#FAF0F8,#EDD8EA)' },
+  { id: 'citrus',     label: 'Citrus',                 emoji: Emoji.tangerine, color: '#C07010', bg: 'linear-gradient(135deg,#FFF3D0,#FFE090)' },
+  { id: 'vegetables', label: 'Vegetables & Edibles',   emoji: Emoji.tomato, color: '#C03020', bg: 'linear-gradient(135deg,#FFE8E0,#FFCCC0)' },
 ];
 
 export const PLANTS: Plant[] = [
@@ -68,10 +69,10 @@ export const PLANTS: Plant[] = [
       avoid: 'High-nitrogen fertilizers — they grow leaves at the expense of flowers and the caudex.',
     },
     tricks: [
-      { icon: '🌞', title: 'Stress for colour', body: 'A few hours of very strong direct sun stress the plant into producing deeper pink/red flowers. Ease into it gradually.' },
-      { icon: '✂️', title: 'Prune for branching', body: 'Cut branches just above a node after flowering — each cut tip will sprout 2–3 new branches, multiplying your flower count next season.' },
-      { icon: '🪨', title: 'Expose the caudex', body: 'Raise it slightly above the soil surface when repotting. The swollen base is the visual highlight — showing it off also reduces rot risk at the base.' },
-      { icon: '💤', title: 'Force dormancy trick', body: 'Stop watering entirely in November–December. The plant will drop leaves — that\'s fine. Resume in February to trigger a burst of spring blooms.' },
+      { icon: Emoji.sunFace, title: 'Stress for colour', body: 'A few hours of very strong direct sun stress the plant into producing deeper pink/red flowers. Ease into it gradually.' },
+      { icon: Emoji.scissors, title: 'Prune for branching', body: 'Cut branches just above a node after flowering — each cut tip will sprout 2–3 new branches, multiplying your flower count next season.' },
+      { icon: Emoji.rock, title: 'Expose the caudex', body: 'Raise it slightly above the soil surface when repotting. The swollen base is the visual highlight — showing it off also reduces rot risk at the base.' },
+      { icon: Emoji.zzz, title: 'Force dormancy trick', body: 'Stop watering entirely in November–December. The plant will drop leaves — that\'s fine. Resume in February to trigger a burst of spring blooms.' },
     ],
     diseases: [
       { symptom: 'Soft, mushy stem base', severity: 'high', cause: 'Root/crown rot from overwatering or poor drainage', fix: 'Remove from pot immediately. Cut away all black/mushy tissue with a sterile blade. Dust cuts with powdered cinnamon or sulphur. Let dry 2–3 days, then repot in fresh dry succulent mix. Do not water for 1 week.' },
@@ -118,10 +119,10 @@ export const PLANTS: Plant[] = [
       avoid: 'Over-fertilizing — causes soft, leggy growth and increases pest susceptibility.',
     },
     tricks: [
-      { icon: '🔴', title: 'Red edge trick', body: 'Place it in bright direct sun for 1–2 hours daily. The leaf edges turn red/orange — it\'s a sign of healthy stress and looks stunning.' },
-      { icon: '✂️', title: 'Bonsai shaping', body: 'Jade responds beautifully to bonsai-style pruning. Remove lower leaves and branches to expose a trunk. Prune in spring for best results.' },
-      { icon: '🌱', title: 'Leaf propagation', body: 'Twist off a healthy leaf cleanly, let it callous 2 days, then lay it on dry succulent mix. A new plant sprouts from the base in 3–4 weeks.' },
-      { icon: '🏜️', title: 'Drought stress blooming', body: 'Jade plants bloom more readily when slightly root-bound and given a cool, dry winter rest (around 10–15°C). Reward is tiny star-shaped white flowers.' },
+      { icon: Emoji.redCircle, title: 'Red edge trick', body: 'Place it in bright direct sun for 1–2 hours daily. The leaf edges turn red/orange — it\'s a sign of healthy stress and looks stunning.' },
+      { icon: Emoji.scissors, title: 'Bonsai shaping', body: 'Jade responds beautifully to bonsai-style pruning. Remove lower leaves and branches to expose a trunk. Prune in spring for best results.' },
+      { icon: Emoji.seedling, title: 'Leaf propagation', body: 'Twist off a healthy leaf cleanly, let it callous 2 days, then lay it on dry succulent mix. A new plant sprouts from the base in 3–4 weeks.' },
+      { icon: Emoji.desert, title: 'Drought stress blooming', body: 'Jade plants bloom more readily when slightly root-bound and given a cool, dry winter rest (around 10–15°C). Reward is tiny star-shaped white flowers.' },
     ],
     diseases: [
       { symptom: 'Leaves become squishy and translucent', severity: 'high', cause: 'Severe overwatering leading to root rot', fix: 'Remove from pot. Trim all black/brown mushy roots. Let air dry 2–3 days. Repot in fresh dry succulent mix. Water sparingly for 3–4 weeks to allow root recovery.' },
@@ -167,10 +168,10 @@ export const PLANTS: Plant[] = [
       avoid: 'Any fertilizer in summer — the plant is dormant and can\'t use nutrients, causing salt buildup in the soil.',
     },
     tricks: [
-      { icon: '🌑', title: 'Dark colour trick', body: 'The purple/black varieties (like \'Zwartkop\') deepen in colour with more sun. Irish Rose stays green but develops red tips with gentle morning direct sun.' },
-      { icon: '✂️', title: 'Stem cutting propagation', body: 'Cut a rosette with 5–8 cm of stem, let it dry 24h, then plant in dry succulent mix. Don\'t water for a week — roots form from the cut end.' },
-      { icon: '🍂', title: 'Autumn reset', body: 'At the end of summer dormancy, remove any dried or shrivelled leaves from the stem base. Fresh autumn rain (or a good watering) wakes it up dramatically.' },
-      { icon: '🌿', title: 'Multi-head branching', body: 'Pinch off the central growing tip in early autumn to encourage the plant to branch into multiple rosette heads instead of one tall stem.' },
+      { icon: Emoji.newMoon, title: 'Dark colour trick', body: 'The purple/black varieties (like \'Zwartkop\') deepen in colour with more sun. Irish Rose stays green but develops red tips with gentle morning direct sun.' },
+      { icon: Emoji.scissors, title: 'Stem cutting propagation', body: 'Cut a rosette with 5–8 cm of stem, let it dry 24h, then plant in dry succulent mix. Don\'t water for a week — roots form from the cut end.' },
+      { icon: Emoji.fallenLeaf, title: 'Autumn reset', body: 'At the end of summer dormancy, remove any dried or shrivelled leaves from the stem base. Fresh autumn rain (or a good watering) wakes it up dramatically.' },
+      { icon: Emoji.herb, title: 'Multi-head branching', body: 'Pinch off the central growing tip in early autumn to encourage the plant to branch into multiple rosette heads instead of one tall stem.' },
     ],
     diseases: [
       { symptom: 'Leaves curl inward and plant looks wilted in summer', severity: 'low', cause: 'Normal summer dormancy response — Aeonium naturally shuts down in heat', fix: 'Do nothing. Move to a slightly shadier spot and reduce watering to once every 3–4 weeks. The plant will reopen fully when autumn temperatures arrive.' },
@@ -187,7 +188,7 @@ export const PLANTS: Plant[] = [
     latin: 'Sempervivum Tectorum',
     category: 'succulents',
     pot: 'Plastic',
-    substrate: '⚠️ Farmland — repot soon!',
+    substrate: `${Emoji.warning} Farmland — repot soon!`,
     potSize: '13 cm',
     color: '#90C0A0',
     accent: '#2A6A3A',
@@ -196,9 +197,9 @@ export const PLANTS: Plant[] = [
       watering: { summer: 'Every 10–14 days', winter: 'Every 3–5 weeks', summerMl: 130, winterMl: 50 },
       light: 'Full direct sun (6h+)',
       temp: 'Hardy to –15°C! Loves cool winters.',
-      warning: '⚠️ Farmland substrate + plastic = root rot risk. Repot into succulent mix ASAP!',
+      warning: `${Emoji.warning} Farmland substrate + plastic = root rot risk. Repot into succulent mix ASAP!`,
       tips: [
-        'No decorative stones = easy moisture check ✅',
+        `No decorative stones = easy moisture check ${Emoji.checkMark}`,
         'Each rosette dies after flowering — chicks live on',
         'Fertilize lightly — overfeeding = floppy rosettes',
         'Great candidate for outdoor balcony in summer',
@@ -217,10 +218,10 @@ export const PLANTS: Plant[] = [
       avoid: 'High nitrogen and frequent feeding — causes oversized, floppy rosettes that lose their tight architectural form.',
     },
     tricks: [
-      { icon: '🏔️', title: 'Rock garden effect', body: 'Sempervivum looks best planted in clusters of different varieties. Their rosettes interlock beautifully — consider grouping 3–5 offsets in a wide shallow bowl.' },
-      { icon: '🌡️', title: 'Freeze for colour', body: 'Cold winter temperatures (even near 0°C) intensify the red and purple hues in the leaves. Don\'t protect it from mild frost — embrace it.' },
-      { icon: '👶', title: 'Chick harvesting', body: 'Gently twist off offset \'chicks\' when they\'re about 1/3 the size of the mother. Let them callous 1 day, then press onto dry succulent mix — no burying needed.' },
-      { icon: '🏺', title: 'No deep pots', body: 'Sempervivum roots are shallow. A wide, shallow dish (even 5–6 cm deep) works better than a tall pot. More surface = more chick space = more spread.' },
+      { icon: Emoji.mountain, title: 'Rock garden effect', body: 'Sempervivum looks best planted in clusters of different varieties. Their rosettes interlock beautifully — consider grouping 3–5 offsets in a wide shallow bowl.' },
+      { icon: Emoji.thermometer, title: 'Freeze for colour', body: 'Cold winter temperatures (even near 0°C) intensify the red and purple hues in the leaves. Don\'t protect it from mild frost — embrace it.' },
+      { icon: Emoji.baby, title: 'Chick harvesting', body: 'Gently twist off offset \'chicks\' when they\'re about 1/3 the size of the mother. Let them callous 1 day, then press onto dry succulent mix — no burying needed.' },
+      { icon: Emoji.amphora, title: 'No deep pots', body: 'Sempervivum roots are shallow. A wide, shallow dish (even 5–6 cm deep) works better than a tall pot. More surface = more chick space = more spread.' },
     ],
     diseases: [
       { symptom: 'Centre of rosette turns brown and mushy', severity: 'high', cause: 'Crown rot — the most common killer, especially in farmland substrate + plastic combo', fix: 'Remove affected rosettes entirely. Check remaining roots and trim any black ones. Repot IMMEDIATELY into proper succulent/cactus mix. Water only when completely dry going forward.' },
@@ -248,7 +249,7 @@ export const PLANTS: Plant[] = [
       temp: '15–26°C — no cold drafts or frost',
       warning: 'Not a true succulent! Needs more frequent watering. Don\'t let it dry out completely.',
       tips: [
-        'No decorative stones = easy moisture check ✅',
+        `No decorative stones = easy moisture check ${Emoji.checkMark}`,
         'Succulent mix is fine — drains well but retains just enough moisture',
         'Trailing stems look best in a hanging pot or on a shelf edge',
         'Pinch off leggy stems to keep growth bushy and compact',
@@ -269,11 +270,11 @@ export const PLANTS: Plant[] = [
       avoid: 'Over-fertilizing — causes fast but leggy, weak growth with pale, washed-out leaf colour.',
     },
     tricks: [
-      { icon: '🎨', title: 'Maximise pink variegation', body: 'The pink and white variegation intensifies with more bright indirect light. Move it closer to a window (but avoid harsh midday sun which scorches the leaves). Too little light = plain green leaves.' },
-      { icon: '✂️', title: 'Pinch for bushiness', body: 'Tradescantia naturally gets leggy over time. Pinch or cut stems just above a leaf node regularly — this triggers 2 new shoots per cut. The cuttings root easily in water or moist soil in 1–2 weeks.' },
-      { icon: '💧', title: 'Water propagation', body: 'Place any cut stem (5–8 cm) in a glass of water on a bright windowsill. Roots appear in 7–10 days. Once 2–3 cm long, pot up in succulent mix.' },
-      { icon: '🌿', title: 'Refresh every 1–2 years', body: 'After 1–2 years the base gets woody and bare. Take cuttings from healthy tips, root them, and start fresh — it\'s faster than reviving an old leggy plant.' },
-      { icon: '🪴', title: 'Ceramic pot advantage', body: 'Your ceramic pot retains slightly more moisture than terracotta — ideal for Tradescantia which appreciates consistent moisture. Always check before watering.' },
+      { icon: Emoji.palette, title: 'Maximise pink variegation', body: 'The pink and white variegation intensifies with more bright indirect light. Move it closer to a window (but avoid harsh midday sun which scorches the leaves). Too little light = plain green leaves.' },
+      { icon: Emoji.scissors, title: 'Pinch for bushiness', body: 'Tradescantia naturally gets leggy over time. Pinch or cut stems just above a leaf node regularly — this triggers 2 new shoots per cut. The cuttings root easily in water or moist soil in 1–2 weeks.' },
+      { icon: Emoji.droplet, title: 'Water propagation', body: 'Place any cut stem (5–8 cm) in a glass of water on a bright windowsill. Roots appear in 7–10 days. Once 2–3 cm long, pot up in succulent mix.' },
+      { icon: Emoji.herb, title: 'Refresh every 1–2 years', body: 'After 1–2 years the base gets woody and bare. Take cuttings from healthy tips, root them, and start fresh — it\'s faster than reviving an old leggy plant.' },
+      { icon: Emoji.pottedPlant, title: 'Ceramic pot advantage', body: 'Your ceramic pot retains slightly more moisture than terracotta — ideal for Tradescantia which appreciates consistent moisture. Always check before watering.' },
     ],
     diseases: [
       { symptom: 'Leaves fade to plain green, pink variegation disappears', severity: 'medium', cause: 'Insufficient light — the plant reverts to producing more chlorophyll (green) when light is too low', fix: 'Move to a brighter spot with more indirect light or a few hours of gentle morning sun. New growth will regain the pink/white variegation within a few weeks.' },
@@ -292,7 +293,7 @@ export const PLANTS: Plant[] = [
     latin: 'Citrus Reticulata (×4)',
     category: 'citrus',
     pot: 'Plastic & Ceramic ×2',
-    substrate: '⚠️ General — repot soon!',
+    substrate: `${Emoji.warning} General — repot soon!`,
     potSize: '11.5 cm',
     color: '#FFD080',
     accent: '#E07820',
@@ -301,7 +302,7 @@ export const PLANTS: Plant[] = [
       watering: { summer: 'Every 5–7 days', winter: 'Every 10–14 days', summerMl: 180, winterMl: 90 },
       light: 'Full direct sun (6–8h)',
       temp: '18–30°C — protect below 10°C!',
-      warning: '⚠️ Pots too small! Repot into 16–18 cm pots + citrus/well-draining mix ASAP.',
+      warning: `${Emoji.warning} Pots too small! Repot into 16–18 cm pots + citrus/well-draining mix ASAP.`,
       tips: [
         'Plastic pots: water less / Ceramic: slightly more often',
         'Rotate pots every 2 weeks for even growth',
@@ -323,11 +324,11 @@ export const PLANTS: Plant[] = [
       avoid: 'Generic all-purpose fertilizers without micronutrients — citrus needs iron, zinc and manganese that generic fertilizers skip.',
     },
     tricks: [
-      { icon: '🌸', title: 'Trigger flowering', body: 'A cool, dry rest period (8–12°C, minimal watering) for 6–8 weeks in winter mimics the Mediterranean climate and triggers spring blooming.' },
-      { icon: '🔄', title: 'Rotate religiously', body: 'Indoor citrus grows lopsided fast. Rotate 90° every time you water. This single habit makes a huge difference in canopy symmetry.' },
-      { icon: '✂️', title: 'Pinch new growth', body: 'Pinch off the tip of long new shoots to encourage bushier, more compact growth. Do this throughout spring and summer.' },
-      { icon: '🪲', title: 'Scale & mite patrol', body: 'Check the stems and leaf undersides weekly — scale insects look like tiny brown bumps. Remove with a cotton swab dipped in rubbing alcohol at first sight.' },
-      { icon: '🌬️', title: 'Ventilation matters', body: 'Citrus hates stagnant air. Keep it near a slightly open window or use a small fan nearby — good airflow prevents fungal issues and strengthens stems.' },
+      { icon: Emoji.blossom, title: 'Trigger flowering', body: 'A cool, dry rest period (8–12°C, minimal watering) for 6–8 weeks in winter mimics the Mediterranean climate and triggers spring blooming.' },
+      { icon: Emoji.rotate, title: 'Rotate religiously', body: 'Indoor citrus grows lopsided fast. Rotate 90° every time you water. This single habit makes a huge difference in canopy symmetry.' },
+      { icon: Emoji.scissors, title: 'Pinch new growth', body: 'Pinch off the tip of long new shoots to encourage bushier, more compact growth. Do this throughout spring and summer.' },
+      { icon: Emoji.beetle, title: 'Scale & mite patrol', body: 'Check the stems and leaf undersides weekly — scale insects look like tiny brown bumps. Remove with a cotton swab dipped in rubbing alcohol at first sight.' },
+      { icon: Emoji.wind, title: 'Ventilation matters', body: 'Citrus hates stagnant air. Keep it near a slightly open window or use a small fan nearby — good airflow prevents fungal issues and strengthens stems.' },
     ],
     diseases: [
       { symptom: 'Leaves turn uniformly pale yellow', severity: 'medium', cause: 'Nitrogen deficiency — very common in small pots where nutrients deplete fast', fix: 'Apply a citrus-specific fertilizer with high nitrogen (30-10-10) at half dose. You should see new leaves emerge green within 2–3 weeks.' },
@@ -347,7 +348,7 @@ export const PLANTS: Plant[] = [
     latin: 'Solanum Lycopersicum',
     category: 'vegetables',
     pot: 'Plastic Planter',
-    substrate: '⚠️ Farmland — enrich soon!',
+    substrate: `${Emoji.warning} Farmland — enrich soon!`,
     potSize: 'Planter',
     color: '#F4A090',
     accent: '#C03020',
@@ -356,7 +357,7 @@ export const PLANTS: Plant[] = [
       watering: { summer: 'Every 1–2 days (check daily!)', winter: 'N/A — tomatoes are seasonal', summerMl: 750, winterMl: 0 },
       light: 'Full direct sun — minimum 8h daily',
       temp: '18–27°C — sensitive to frost and extreme heat',
-      warning: '⚠️ Tomatoes in plastic planters dry out FAST in summer. Check soil daily!',
+      warning: `${Emoji.warning} Tomatoes in plastic planters dry out FAST in summer. Check soil daily!`,
       tips: [
         '3 tomatoes growing = fruiting stage — switch to high-K fertilizer NOW',
         'Water at soil level only — wet leaves invite fungal disease',
@@ -381,12 +382,12 @@ export const PLANTS: Plant[] = [
       avoid: 'High-nitrogen fertilizer now that fruit is setting — it grows leaves instead of ripening your tomatoes.',
     },
     tricks: [
-      { icon: '🍅', title: 'Sucker pinching = bigger tomatoes', body: 'Pinch off all suckers (small shoots growing between the main stem and a branch) with your fingers. This redirects energy into ripening your 3 existing tomatoes.' },
-      { icon: '☀️', title: 'Maximise sun for ripening', body: 'Gently tuck or remove leaves that are shading your 3 tomatoes directly. The fruit needs direct sun to ripen evenly and develop full flavour.' },
-      { icon: '💧', title: 'Consistent watering = no cracking', body: 'Inconsistent watering (dry then soaked) causes tomatoes to crack as they expand suddenly. Try to water the same amount at the same time every day.' },
-      { icon: '🌡️', title: 'Warmth speeds ripening', body: 'If your tomatoes are green and slow to colour, place the planter in the warmest sunniest spot available. A south-facing wall that reflects heat is ideal.' },
-      { icon: '✂️', title: 'Top the plant now', body: 'Since you already have fruit, pinch off the very top growing tip of the main stem. This stops upward energy and puts everything into ripening your existing tomatoes.' },
-      { icon: '🪱', title: 'Enrich the farmland substrate', body: 'Mix a handful of compost or worm castings into the top layer of soil. Farmland substrate alone is poor in available nutrients — this gives your tomatoes a natural boost.' },
+      { icon: Emoji.tomato, title: 'Sucker pinching = bigger tomatoes', body: 'Pinch off all suckers (small shoots growing between the main stem and a branch) with your fingers. This redirects energy into ripening your 3 existing tomatoes.' },
+      { icon: Emoji.sun, title: 'Maximise sun for ripening', body: 'Gently tuck or remove leaves that are shading your 3 tomatoes directly. The fruit needs direct sun to ripen evenly and develop full flavour.' },
+      { icon: Emoji.droplet, title: 'Consistent watering = no cracking', body: 'Inconsistent watering (dry then soaked) causes tomatoes to crack as they expand suddenly. Try to water the same amount at the same time every day.' },
+      { icon: Emoji.thermometer, title: 'Warmth speeds ripening', body: 'If your tomatoes are green and slow to colour, place the planter in the warmest sunniest spot available. A south-facing wall that reflects heat is ideal.' },
+      { icon: Emoji.scissors, title: 'Top the plant now', body: 'Since you already have fruit, pinch off the very top growing tip of the main stem. This stops upward energy and puts everything into ripening your existing tomatoes.' },
+      { icon: Emoji.worm, title: 'Enrich the farmland substrate', body: 'Mix a handful of compost or worm castings into the top layer of soil. Farmland substrate alone is poor in available nutrients — this gives your tomatoes a natural boost.' },
     ],
     diseases: [
       { symptom: 'Dark brown leathery patch on the bottom of tomatoes', severity: 'high', cause: 'Blossom End Rot — calcium deficiency, worsened by inconsistent watering', fix: 'This fruit is not recoverable but the plant is fine. Add a calcium supplement. Water consistently every day — fluctuating moisture blocks calcium uptake.' },
@@ -401,19 +402,19 @@ export const PLANTS: Plant[] = [
 ];
 
 export const TABS: { id: TabId; label: string }[] = [
-  { id: 0, label: '🪴 Setup' },
-  { id: 1, label: '🌿 Care' },
-  { id: 2, label: '🧪 Fertilizer' },
-  { id: 3, label: '✨ Tricks' },
-  { id: 4, label: '🩺 Diseases' },
+  { id: 0, label: `${Emoji.pottedPlant} Setup` },
+  { id: 1, label: `${Emoji.herb} Care` },
+  { id: 2, label: `${Emoji.testTube} Fertilizer` },
+  { id: 3, label: `${Emoji.sparkles} Tricks` },
+  { id: 4, label: `${Emoji.stethoscope} Diseases` },
 ];
 
 export const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
 export const SEVERITY_CONFIG: Record<Severity, { color: string; bg: string; border: string; label: string }> = {
-  high: { color: '#C04040', bg: '#FFF0F0', border: '#FFCCCC', label: '🔴 Urgent' },
-  medium: { color: '#B06010', bg: '#FFF8E8', border: '#FFD080', label: '🟡 Attention' },
-  low: { color: '#2A6A3A', bg: '#F0FAF2', border: '#A8D8B0', label: '🟢 Minor' },
+  high: { color: '#C04040', bg: '#FFF0F0', border: '#FFCCCC', label: `${Emoji.redCircle} Urgent` },
+  medium: { color: '#B06010', bg: '#FFF8E8', border: '#FFD080', label: `${Emoji.yellowCircle} Attention` },
+  low: { color: '#2A6A3A', bg: '#F0FAF2', border: '#A8D8B0', label: `${Emoji.greenCircle} Minor` },
 };
 
 const createSizeOptions = (min: number, max: number, step: number) => {

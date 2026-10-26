@@ -11,6 +11,9 @@ const startApp = async () => {
       if (plant.setup) {
         localStorage.setItem(`garden-setup-${plant.id}`, JSON.stringify(plant.setup));
       }
+      if (plant.careEvents) {
+        localStorage.setItem(`garden-care-events-${plant.id}`, JSON.stringify(plant.careEvents));
+      }
     });
   } catch (error) {
     console.error('Unable to load the garden data file.', error);

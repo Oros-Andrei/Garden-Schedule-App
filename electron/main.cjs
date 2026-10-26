@@ -69,15 +69,73 @@ async function savePlantSetup(plant) {
   }
   const data = await readGardenData();
   const index = data.plants.findIndex(item => item.id === plant.id);
+  const existingRecord = index >= 0 ? data.plants[index] : {};
+  const careEvents = (Array.isArray(existingRecord.careEvents) ? existingRecord.careEvents : [])
+    .filter(event => event.type !== 'potted' && event.type !== 'repotted');
+  if (plant.setup.pottedOn) careEvents.push({
+    id: `potted-${plant.setup.pottedOn}`,
+    type: 'potted',
+    date: plant.setup.pottedOn,
+    potMaterial: plant.setup.potMaterial,
+    substrate: plant.setup.substrate,
+  });
+  if (plant.setup.repotted) careEvents.push({
+    id: `repotted-${plant.setup.repotted}`,
+    type: 'repotted',
+    date: plant.setup.repotted,
+    potMaterial: plant.setup.potMaterial,
+    substrate: plant.setup.substrate,
+  });
   const updatedRecord = {
-    ...(index >= 0 ? data.plants[index] : {}),
+    ...existingRecord,
     id: plant.id,
     name: plant.name,
     source: 'built-in',
     setup: plant.setup,
+    careEvents,
   };
   if (index >= 0) data.plants[index] = updatedRecord;
   else data.plants.push(updatedRecord);
+  return writeGardenData(data);
+}
+
+async function saveCareEvent(payload) {
+  const { id, name, event } = payload || {};
+  if (typeof id !== 'string' || typeof name !== 'string' || !event ||
+      !['watering', 'fertilizing', 'potted', 'repotted'].includes(event.type) || typeof event.date !== 'string') {
+    throw new Error('The care event is invalid.');
+  }
+  if (event.type === 'fertilizing' && !['Cucumber water', 'Normal', 'Banana Water'].includes(event.fertilizerMethod)) {
+    throw new Error('The fertilizer type is invalid.');
+  }
+  if ((event.type === 'potted' || event.type === 'repotted') &&
+      (typeof event.potMaterial !== 'string' || !event.potMaterial || typeof event.substrate !== 'string' || !event.substrate)) {
+    throw new Error('The pot material and soil are required for potting events.');
+  }
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(event.date);
+  if (!match) throw new Error('The care event date is invalid.');
+  const [, year, month, day] = match;
+  const date = new Date(Number(year), Number(month) - 1, Number(day));
+  if (date.getFullYear() !== Number(year) || date.getMonth() !== Number(month) - 1 || date.getDate() !== Number(day)) {
+    throw new Error('The care event date is invalid.');
+  }
+
+  const data = await readGardenData();
+  const index = data.plants.findIndex(plant => plant.id === id);
+  const existing = index >= 0 ? data.plants[index] : { id, name, source: 'built-in' };
+  const careEvents = (Array.isArray(existing.careEvents) ? existing.careEvents : [])
+    .filter(item => !(item.type === event.type &&
+      ((event.type === 'potted' || event.type === 'repotted') || item.date === event.date)));
+  careEvents.push({ ...event, id: `${event.type}-${event.date}` });
+  const setup = (event.type === 'potted' || event.type === 'repotted') ? {
+    ...(existing.setup || {}),
+    potMaterial: event.potMaterial,
+    substrate: event.substrate,
+    ...(event.type === 'potted' ? { pottedOn: event.date } : { repotted: event.date }),
+  } : existing.setup;
+  const updated = { ...existing, id, name, careEvents, ...(setup ? { setup } : {}) };
+  if (index >= 0) data.plants[index] = updated;
+  else data.plants.push(updated);
   return writeGardenData(data);
 }
 
@@ -105,6 +163,7 @@ async function importGardenData() {
 function registerHandlers() {
   ipcMain.handle('garden-data:load', () => readGardenData());
   ipcMain.handle('garden-data:save-setup', (_event, plant) => savePlantSetup(plant));
+  ipcMain.handle('garden-data:log-care-event', (_event, payload) => saveCareEvent(payload));
   ipcMain.handle('garden-data:import', () => importGardenData());
   ipcMain.handle('garden-data:open-folder', async () => {
     await fs.mkdir(getGardenDataDirectory(), { recursive: true });
