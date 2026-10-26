@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { TABS } from '../Resources/Constants';
+import type { PlantSetup } from '../Resources/GardenData';
 import type { Plant, TabId } from '../Resources/Types';
 import CareTab from '../Tabs/CareTab';
 import DiseasesTab from '../Tabs/DiseasesTab';
 import FertilizerTab from '../Tabs/FertilizerTab';
-import SetupTab, { loadPlantSetup, type PlantSetup } from '../Tabs/SetupTab';
+import SetupTab, { loadPlantSetup } from '../Tabs/SetupTab';
 import TricksTab from '../Tabs/TricksTab';
 
 interface PlantDetailProps {
@@ -18,7 +19,7 @@ const PlantDetail: React.FC<PlantDetailProps> = ({ plant, onClose }) => {
   const [editingSetup, setEditingSetup] = useState(false);
   const [setupDraft, setSetupDraft] = useState<PlantSetup>(setup);
 
-  const saveSetup = () => {
+  const saveSetup = async () => {
     const updatedSetup = {
       ...setupDraft,
       potMaterial: setupDraft.potMaterial.trim(),
@@ -28,6 +29,13 @@ const PlantDetail: React.FC<PlantDetailProps> = ({ plant, onClose }) => {
     try {
       localStorage.setItem(`garden-setup-${plant.id}`, JSON.stringify(updatedSetup));
     } catch { /* Keep the edits for this session if browser storage is unavailable. */ }
+
+    try {
+      await window.gardenDesktop?.saveSetup({ id: plant.id, name: plant.name, setup: updatedSetup });
+    } catch (error) {
+      console.error('Unable to save the garden data file.', error);
+      window.alert('Your changes are visible for this session, but could not be saved to the garden data file.');
+    }
     setEditingSetup(false);
   };
 

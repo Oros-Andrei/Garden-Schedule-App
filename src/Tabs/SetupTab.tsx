@@ -1,18 +1,11 @@
 import React from 'react';
+import type { PlantSetup } from '../Resources/GardenData';
 import type { Plant } from '../Resources/Types';
 import { POT_MATERIAL_OPTIONS, POT_SIZE_OPTIONS, POT_TYPE_OPTIONS, SOIL_OPTIONS } from '../Resources/Constants';
 import Button from '../Components/Button';
 import DatePicker from '../Components/DatePicker';
 import Dropdown from '../Components/Dropdown';
 import TextBox from '../Components/TextBox';
-
-export type PlantSetup = {
-  substrate: string;
-  potType: string;
-  potMaterial: string;
-  potSize: string;
-  repotted: string;
-};
 
 export const loadPlantSetup = (plant: Plant): PlantSetup => {
   const initialSoil = [...SOIL_OPTIONS].sort((a, b) => b.length - a.length)

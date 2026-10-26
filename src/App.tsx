@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { CATEGORIES, PLANTS } from './Resources/Constants';
+import type { GardenData, PlantSetup, SavedPlant } from './Resources/GardenData';
 import PlantDetail from './Components/PlantDetail';
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
@@ -17,6 +18,73 @@ const App: React.FC = () => {
 
   const toggleCat = (id: string) => {
     setOpenCats(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const createBrowserBackup = (): GardenData => {
+    const plants: SavedPlant[] = PLANTS.flatMap(plant => {
+      let savedSetup: Partial<PlantSetup> = {};
+      let savedSoil: string | null = null;
+      try {
+        const setupValue = localStorage.getItem(`garden-setup-${plant.id}`);
+        if (setupValue) savedSetup = JSON.parse(setupValue) as Partial<PlantSetup>;
+        savedSoil = localStorage.getItem(`garden-soil-${plant.id}`);
+      } catch {
+        // Skip malformed browser records; the original browser data remains untouched.
+        return [];
+      }
+
+      if (!Object.keys(savedSetup).length && !savedSoil) return [];
+
+      const setup: PlantSetup = {
+        substrate: typeof savedSetup.substrate === 'string' ? savedSetup.substrate : savedSoil ?? 'General',
+        potType: typeof savedSetup.potType === 'string' ? savedSetup.potType : 'Custom',
+        potMaterial: typeof savedSetup.potMaterial === 'string' ? savedSetup.potMaterial : plant.pot,
+        potSize: typeof savedSetup.potSize === 'string' ? savedSetup.potSize : plant.potSize,
+        repotted: typeof savedSetup.repotted === 'string' ? savedSetup.repotted : '',
+      };
+
+      return [{ id: plant.id, name: plant.name, source: 'built-in', setup, photo: null, icon: null }];
+    });
+
+    return { formatVersion: 1, plants };
+  };
+
+  const exportGardenData = async () => {
+    try {
+      const backup = await window.gardenDesktop?.load() ?? createBrowserBackup();
+      const content = new Blob([`${JSON.stringify(backup, null, 2)}\n`], { type: 'application/json' });
+      const url = URL.createObjectURL(content);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'garden-data.json';
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      console.error('Unable to export the garden data file.', error);
+      window.alert('Garden data could not be exported.');
+    }
+  };
+
+  const importGardenData = async () => {
+    if (!window.gardenDesktop) return;
+    if (!window.confirm('Import a garden backup? Matching plant records in this app will be replaced by the backup.')) return;
+    try {
+      const imported = await window.gardenDesktop.importData();
+      if (!imported) return;
+      window.location.reload();
+    } catch (error) {
+      console.error('Unable to import the garden data file.', error);
+      window.alert('That garden data file could not be imported. Your current data was left unchanged.');
+    }
+  };
+
+  const openGardenDataFolder = async () => {
+    try {
+      const error = await window.gardenDesktop?.openDataFolder();
+      if (error) window.alert(`Could not open the garden data folder: ${error}`);
+    } catch (error) {
+      console.error('Unable to open the garden data folder.', error);
+    }
   };
 
   return (
@@ -49,6 +117,21 @@ const App: React.FC = () => {
           Andrei's Garden
         </div>
         <h1 style={{ fontSize: 26, color: '#2A4A1A', margin: 0 }}>Plant Care Guide</h1>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+          <button type="button" onClick={exportGardenData} style={{ cursor: 'pointer', border: '1px solid #B8D0A8', borderRadius: 8, background: '#FFFFFFCC', color: '#3A5A2A', padding: '6px 10px', font: 'inherit', fontSize: 13 }}>
+            Export JSON backup
+          </button>
+          {window.gardenDesktop && (
+            <>
+              <button type="button" onClick={importGardenData} style={{ cursor: 'pointer', border: '1px solid #B8D0A8', borderRadius: 8, background: '#FFFFFFCC', color: '#3A5A2A', padding: '6px 10px', font: 'inherit', fontSize: 13 }}>
+                Import JSON backup
+              </button>
+              <button type="button" onClick={openGardenDataFolder} style={{ cursor: 'pointer', border: '1px solid #B8D0A8', borderRadius: 8, background: '#FFFFFFCC', color: '#3A5A2A', padding: '6px 10px', font: 'inherit', fontSize: 13 }}>
+                Open data folder
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* ── Two-column layout ── */}

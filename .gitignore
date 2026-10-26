@@ -5,6 +5,8 @@ node_modules/
 dist/
 build/
 coverage/
+release*/
+/Garden Storage/
 
 # Environment files and secrets
 .env
