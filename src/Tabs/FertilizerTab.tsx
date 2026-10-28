@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Emoji } from '../Resources/Emoji';
+import type { PlantProfileContentUpdate } from '../Resources/GardenData';
 import type { Plant } from '../Resources/Types';
+import Button from '../Components/Button';
+import CustomPlantInfoEditor from '../Components/CustomPlantInfoEditor';
 
 const NPKBar: React.FC<{ label: string; value: number; max: number; color: string }> = ({ label, value, max, color }) => (
   <div style={{ marginBottom: 6 }}>
@@ -14,11 +17,23 @@ const NPKBar: React.FC<{ label: string; value: number; max: number; color: strin
   </div>
 );
 
-const FertilizerTab: React.FC<{ plant: Plant }> = ({ plant }) => {
+const FertilizerTab: React.FC<{ plant: Plant; onSavePlantContent: (update: PlantProfileContentUpdate) => Promise<boolean> }> = ({ plant, onSavePlantContent }) => {
+  const [editing, setEditing] = useState(false);
+  // Use the shared editor for built-in profiles without changing their catalog defaults.
+  if (editing) return <CustomPlantInfoEditor plant={plant} section="fertilizer" onSave={onSavePlantContent} onCancel={() => setEditing(false)} />;
+  if (plant.isCustom && !plant.customInfo?.fertilizer) return (
+    <div role="status" style={{ padding: 18, borderRadius: 12, background: '#F5F9F0', color: '#5A7A4A', fontSize: 14, textAlign: 'center' }}>
+      <div style={{ marginBottom: 10 }}>Fertilizer information has not been added for this plant yet.</div>
+      <Button onClick={() => setEditing(true)} icon={Emoji.plus} color="#4A8C3A">Add information</Button>
+    </div>
+  );
   const maxNPK = Math.max(plant.fertilizer.npk.n, plant.fertilizer.npk.p, plant.fertilizer.npk.k, 30);
 
   return (
     <div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+        <Button onClick={() => setEditing(true)} icon={Emoji.edit} color="#4A8C3A">Edit information</Button>
+      </div>
       <div style={{ background: '#F5F9F0', borderRadius: 14, padding: '12px 14px', marginBottom: 13 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
           <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, color: plant.accent }}>{Emoji.testTube} NPK Ratio</div>

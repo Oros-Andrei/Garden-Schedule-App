@@ -43,6 +43,8 @@ export const Emoji = {
   calendar: '📅',
   farmer: '🧑‍🌾',
   plus: '➕',
+  // Use a tray glyph for exporting data into a downloaded file.
+  download: '📥',
   prohibited: '🚫',
   brick: '🧱',
   wiltedFlower: '🥀',

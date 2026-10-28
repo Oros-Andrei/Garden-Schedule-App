@@ -1,5 +1,6 @@
 export type Severity = 'high' | 'medium' | 'low';
-export type Category = 'succulents' | 'tropicals' | 'citrus' | 'vegetables';
+// Allow user-created categories to share the plant profile model with built-ins.
+export type Category = string;
 export type TabId = 0 | 1 | 2 | 3 | 4;
 
 export interface Watering {
@@ -61,6 +62,12 @@ export interface Plant {
   fertilizer: Fertilizer;
   tricks: Trick[];
   diseases: Disease[];
+  // Track which custom care sections have user-provided content.
+  customInfo?: { care: boolean; fertilizer: boolean; tricks: boolean; diseases: boolean };
+  // Keep compressed user photos alongside the plant when rendering its card.
+  photo?: string;
+  // Let the profile renderer distinguish user plants without care guidance.
+  isCustom?: boolean;
 }
 
 export interface CategoryDef {

@@ -24,6 +24,9 @@ export const POT_TYPE_OPTIONS = ['Planter', 'Round', 'Squared', 'Custom'];
 
 export const POT_MATERIAL_OPTIONS = ['Ceramic', 'Plastic', 'Terracotta', 'Recycled wood'];
 
+// Keep standard log choices separate so Settings can store only user-added fertilizers.
+export const FERTILIZER_OPTIONS = ['Cucumber water', 'Normal', 'Banana Water'];
+
 export const CATEGORIES: CategoryDef[] = [
   { id: 'succulents', label: 'Succulents',             emoji: Emoji.cactus, color: '#4A8C3A', bg: 'linear-gradient(135deg,#E8F5E0,#D0EBC0)' },
   { id: 'tropicals',  label: 'Tropicals & Houseplants',emoji: Emoji.hibiscus, color: '#8B3A7A', bg: 'linear-gradient(135deg,#FAF0F8,#EDD8EA)' },
