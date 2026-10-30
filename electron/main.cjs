@@ -20,7 +20,7 @@ function validatePlantPhoto(photo) {
 const emptyGardenData = () => ({
   formatVersion: FORMAT_VERSION,
   categories: [],
-  customOptions: { fertilizers: [], potMaterials: [], soils: [] },
+  customOptions: { fertilizers: [], potMaterials: [], soils: [], rooms: [] },
   plants: [],
   deletedPlantIds: [],
   deletedCategoryIds: [],
@@ -30,7 +30,7 @@ const emptyGardenData = () => ({
 function normalizeCustomOptions(value = {}) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('The custom options are invalid.');
   const result = {};
-  for (const key of ['fertilizers', 'potMaterials', 'soils']) {
+  for (const key of ['fertilizers', 'potMaterials', 'soils', 'rooms']) {
     if (value[key] !== undefined && !Array.isArray(value[key])) throw new Error(`The ${key} options are invalid.`);
     const options = value[key] || [];
     if (options.some(option => typeof option !== 'string' || !option.trim())) throw new Error(`The ${key} options are invalid.`);
@@ -63,6 +63,10 @@ function normalizeGardenData(value) {
   const categories = (value.categories || []).map(category => {
     if (!category || typeof category.id !== 'string' || !category.id.trim() || typeof category.name !== 'string' || !category.name.trim()) {
       throw new Error('A category record is missing its id or name.');
+    }
+    // Keep saved colors valid while allowing older category records without a color.
+    if (category.color !== undefined && (typeof category.color !== 'string' || !/^#[0-9A-Fa-f]{6}$/.test(category.color))) {
+      throw new Error('A category color is invalid.');
     }
     return { ...category, id: category.id.trim(), name: category.name.trim() };
   });
@@ -183,8 +187,12 @@ async function saveCustomCategory(category) {
   if (!category || typeof category.id !== 'string' || !category.id.trim() || typeof category.name !== 'string' || !category.name.trim()) {
     throw new Error('The category name is required.');
   }
+  // Validate the selected hex color before saving it to desktop data.
+  if (category.color !== undefined && (typeof category.color !== 'string' || !/^#[0-9A-Fa-f]{6}$/.test(category.color))) {
+    throw new Error('The category color is invalid.');
+  }
   const data = await readGardenData();
-  const record = { id: category.id.trim(), name: category.name.trim() };
+  const record = { id: category.id.trim(), name: category.name.trim(), ...(category.color ? { color: category.color } : {}) };
   const index = data.categories.findIndex(item => item.id === record.id);
   if (index >= 0) data.categories[index] = record;
   else data.categories.push(record);
@@ -309,8 +317,9 @@ async function saveCustomOptions(options) {
 
 async function saveCareEvent(payload) {
   const { id, name, event } = payload || {};
+  // Route Location entries through the same validated persistence path as care events.
   if (typeof id !== 'string' || typeof name !== 'string' || !event ||
-      !['watering', 'fertilizing', 'potted', 'repotted'].includes(event.type) || typeof event.date !== 'string') {
+      !['watering', 'fertilizing', 'potted', 'repotted', 'location'].includes(event.type) || typeof event.date !== 'string') {
     throw new Error('The care event is invalid.');
   }
   if ((event.type === 'potted' || event.type === 'repotted') &&
@@ -326,6 +335,10 @@ async function saveCareEvent(payload) {
   }
 
   const data = await readGardenData();
+  // Accept location events only when their room comes from Add info.
+  if (event.type === 'location' && (typeof event.room !== 'string' || !data.customOptions.rooms.includes(event.room))) {
+    throw new Error('The location room is invalid.');
+  }
   // Accept configured fertilizer names while rejecting unconfigured event values.
   if (event.type === 'fertilizing' && ![...BUILT_IN_FERTILIZERS, ...data.customOptions.fertilizers].includes(event.fertilizerMethod)) {
     throw new Error('The fertilizer type is invalid.');
@@ -351,9 +364,10 @@ async function saveCareEvent(payload) {
 // Remove one care record and persist any matching setup-date change with it.
 async function deleteCareEvent(payload) {
   const { id, name, source, eventId, type, date, setup } = payload || {};
+  // Allow saved Location entries to use the existing calendar deletion flow.
   if (typeof id !== 'string' || !id.trim() || typeof name !== 'string' || !name.trim() ||
       !['built-in', 'custom'].includes(source) || typeof eventId !== 'string' || !eventId.trim() ||
-      !['watering', 'fertilizing', 'potted', 'repotted'].includes(type) || typeof date !== 'string' ||
+      !['watering', 'fertilizing', 'potted', 'repotted', 'location'].includes(type) || typeof date !== 'string' ||
       !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     throw new Error('The care-event deletion request is invalid.');
   }
@@ -387,7 +401,7 @@ async function importGardenData() {
   return writeGardenData({
     formatVersion: FORMAT_VERSION,
     categories: Array.from(new Map([...currentData.categories, ...importedData.categories].map(category => [category.id, category])).values()),
-    customOptions: Object.fromEntries(['fertilizers', 'potMaterials', 'soils'].map(key => [
+    customOptions: Object.fromEntries(['fertilizers', 'potMaterials', 'soils', 'rooms'].map(key => [
       key,
       Array.from(new Set([...currentData.customOptions[key], ...importedData.customOptions[key]])),
     ])),

@@ -43,8 +43,13 @@ const DiseaseCard: React.FC<{ disease: Disease; accent: string }> = ({ disease, 
   );
 };
 
+const diseaseSeverityOrder: Record<Disease['severity'], number> = { low: 0, medium: 1, high: 2 };
+
 const DiseasesTab: React.FC<{ plant: Plant; onSavePlantContent: (update: PlantProfileContentUpdate) => Promise<boolean> }> = ({ plant, onSavePlantContent }) => {
   const [editing, setEditing] = useState(false);
+  // Sort a copy so the saved disease order remains untouched.
+  const sortedDiseases = [...plant.diseases].sort((first, second) =>
+    diseaseSeverityOrder[first.severity] - diseaseSeverityOrder[second.severity]);
   // Use the shared editor for built-in profiles without changing their catalog defaults.
   if (editing) return <CustomPlantInfoEditor plant={plant} section="diseases" onSave={onSavePlantContent} onCancel={() => setEditing(false)} />;
   if (plant.isCustom && !plant.customInfo?.diseases) return (
@@ -55,11 +60,12 @@ const DiseasesTab: React.FC<{ plant: Plant; onSavePlantContent: (update: PlantPr
   );
   return (
   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+    <div style={{ fontSize: 14, color: '#7A9A6A', marginBottom: 2 }}>Tap a symptom to see the cause and fix.</div>
+    {sortedDiseases.map((disease, index) => <DiseaseCard key={index} disease={disease} accent={plant.accent} />)}
+    {/* Keep the edit action at the bottom-right after all disease records. */}
+    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 2 }}>
       <Button onClick={() => setEditing(true)} icon={Emoji.edit} color="#4A8C3A">Edit information</Button>
     </div>
-    <div style={{ fontSize: 14, color: '#7A9A6A', marginBottom: 2 }}>Tap a symptom to see the cause and fix.</div>
-    {plant.diseases.map((disease, index) => <DiseaseCard key={index} disease={disease} accent={plant.accent} />)}
   </div>
   );
 };

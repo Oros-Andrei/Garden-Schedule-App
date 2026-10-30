@@ -5,17 +5,56 @@ import type { Plant } from '../Resources/Types';
 import Button from '../Components/Button';
 import CustomPlantInfoEditor from '../Components/CustomPlantInfoEditor';
 
-const NPKBar: React.FC<{ label: string; value: number; max: number; color: string }> = ({ label, value, max, color }) => (
-  <div style={{ marginBottom: 6 }}>
-    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-      <span style={{ fontSize: 14, fontWeight: 700, color: '#5A7A4A' }}>{label}</span>
-      <span style={{ fontSize: 14, color: '#5A7A4A' }}>{value}%</span>
+const NPKPieChart: React.FC<{ n: number; p: number; k: number }> = ({ n, p, k }) => {
+  const total = n + p + k;
+  const nutrients = [
+    { label: 'Nitrogen — leaves & growth', value: n, color: '#5A9E4A' },
+    { label: 'Phosphorus — roots & flowers', value: p, color: '#E07820' },
+    { label: 'Potassium — immunity & stems', value: k, color: '#7BAFD4' },
+  ];
+  // Normalize the NPK ratio into slices that add up to exactly 100 percent.
+  const exactShares = nutrients.map(item => total > 0 ? item.value / total * 100 : 0);
+  const shares = exactShares.map(Math.floor);
+  const remainingPoints = total > 0 ? 100 - shares.reduce((sum, value) => sum + value, 0) : 0;
+  [...exactShares.keys()]
+    .sort((first, second) => (exactShares[second] - shares[second]) - (exactShares[first] - shares[first]))
+    .slice(0, remainingPoints)
+    .forEach(index => { shares[index] += 1; });
+
+  let angle = -90;
+  const slices = nutrients.map((item, index) => {
+    const startAngle = angle;
+    angle += shares[index] * 3.6;
+    const endAngle = angle;
+    const start = { x: 80 + 68 * Math.cos(startAngle * Math.PI / 180), y: 80 + 68 * Math.sin(startAngle * Math.PI / 180) };
+    const end = { x: 80 + 68 * Math.cos(endAngle * Math.PI / 180), y: 80 + 68 * Math.sin(endAngle * Math.PI / 180) };
+    const largeArc = shares[index] > 50 ? 1 : 0;
+    return { ...item, percent: shares[index], path: `M 80 80 L ${start.x} ${start.y} A 68 68 0 ${largeArc} 1 ${end.x} ${end.y} Z` };
+  });
+
+  // Reduce the chart footprint so it can sit beside the fertilizer type and schedule.
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(85px, 112px) minmax(0, 1fr)', alignItems: 'center', gap: 10 }}>
+      <svg viewBox="0 0 160 160" role="img" aria-label={total > 0 ? 'NPK distribution totals 100 percent' : 'No NPK values entered'} style={{ width: '100%', maxWidth: 112 }}>
+        {total > 0 ? slices.filter(slice => slice.percent > 0).map(slice => slice.percent === 100
+          ? <circle key={slice.label} cx="80" cy="80" r="68" fill={slice.color} aria-label={`${slice.label}: 100%`} />
+          : <path key={slice.label} d={slice.path} fill={slice.color} stroke="white" strokeWidth="1.5"
+            aria-label={`${slice.label}: ${slice.percent}%`} />)
+          : <circle cx="80" cy="80" r="68" fill="#E8F0E0" />}
+      </svg>
+      <div style={{ display: 'grid', gap: 5 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#3A5A2A' }}>Total: {total > 0 ? '100%' : '0%'}</div>
+        {slices.map(slice => <div key={slice.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 7, fontSize: 12, color: '#5A7A4A' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+            <span aria-hidden="true" style={{ width: 9, height: 9, flexShrink: 0, borderRadius: '50%', background: slice.color }} />
+            {slice.label}
+          </span>
+          <strong style={{ color: '#3A5A2A' }}>{slice.percent}%</strong>
+        </div>)}
+      </div>
     </div>
-    <div style={{ height: 8, background: '#E8F0E0', borderRadius: 4, overflow: 'hidden' }}>
-      <div style={{ height: '100%', width: `${(value / max) * 100}%`, background: color, borderRadius: 4, transition: 'width 0.6s ease' }} />
-    </div>
-  </div>
-);
+  );
+};
 
 const FertilizerTab: React.FC<{ plant: Plant; onSavePlantContent: (update: PlantProfileContentUpdate) => Promise<boolean> }> = ({ plant, onSavePlantContent }) => {
   const [editing, setEditing] = useState(false);
@@ -27,29 +66,25 @@ const FertilizerTab: React.FC<{ plant: Plant; onSavePlantContent: (update: Plant
       <Button onClick={() => setEditing(true)} icon={Emoji.plus} color="#4A8C3A">Add information</Button>
     </div>
   );
-  const maxNPK = Math.max(plant.fertilizer.npk.n, plant.fertilizer.npk.p, plant.fertilizer.npk.k, 30);
-
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
-        <Button onClick={() => setEditing(true)} icon={Emoji.edit} color="#4A8C3A">Edit information</Button>
-      </div>
-      <div style={{ background: '#F5F9F0', borderRadius: 14, padding: '12px 14px', marginBottom: 13 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, color: plant.accent }}>{Emoji.testTube} NPK Ratio</div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: plant.accent, letterSpacing: 1 }}>{plant.fertilizer.npkLabel}</div>
+      {/* Keep the chart and its two key fertilizer details together in a compact, wrapping row. */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10, marginBottom: 13 }}>
+        <div style={{ background: '#F5F9F0', borderRadius: 14, padding: '10px 12px', minWidth: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, color: plant.accent }}>{Emoji.testTube} NPK Ratio</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: plant.accent, letterSpacing: 1 }}>{plant.fertilizer.npkLabel}</div>
+          </div>
+          <NPKPieChart n={plant.fertilizer.npk.n} p={plant.fertilizer.npk.p} k={plant.fertilizer.npk.k} />
         </div>
-        <NPKBar label="N — Nitrogen (leaves & growth)" value={plant.fertilizer.npk.n} max={maxNPK} color="#5A9E4A" />
-        <NPKBar label="P — Phosphorus (roots & flowers)" value={plant.fertilizer.npk.p} max={maxNPK} color="#E07820" />
-        <NPKBar label="K — Potassium (immunity & stems)" value={plant.fertilizer.npk.k} max={maxNPK} color="#7BAFD4" />
-      </div>
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, color: plant.accent, marginBottom: 4 }}>{Emoji.lotionBottle} Fertilizer Type</div>
-        <div style={{ fontSize: 14, color: '#3A5A2A', fontWeight: 600 }}>{plant.fertilizer.type}</div>
-      </div>
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, color: plant.accent, marginBottom: 4 }}>{Emoji.calendar} Schedule</div>
-        <div style={{ fontSize: 14, color: '#3A5A2A' }}>{plant.fertilizer.schedule}</div>
+        <div style={{ background: '#F5F9F0', borderRadius: 14, padding: '12px 14px', minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, color: plant.accent, marginBottom: 6 }}>{Emoji.lotionBottle} Fertilizer Type</div>
+          <div style={{ fontSize: 14, color: '#3A5A2A', fontWeight: 600 }}>{plant.fertilizer.type}</div>
+        </div>
+        <div style={{ background: '#F5F9F0', borderRadius: 14, padding: '12px 14px', minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, color: plant.accent, marginBottom: 6 }}>{Emoji.calendar} Schedule</div>
+          <div style={{ fontSize: 14, color: '#3A5A2A' }}>{plant.fertilizer.schedule}</div>
+        </div>
       </div>
       <div style={{ background: '#F5F9F0', borderRadius: 12, padding: '10px 13px', marginBottom: 12 }}>
         <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, color: plant.accent, marginBottom: 5 }}>{Emoji.farmer} How to Apply</div>
@@ -66,6 +101,10 @@ const FertilizerTab: React.FC<{ plant: Plant; onSavePlantContent: (update: Plant
       <div style={{ background: '#FFF0F0', border: '1.5px solid #FFCCCC', borderRadius: 12, padding: '9px 13px' }}>
         <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, color: '#C04040', marginBottom: 4 }}>{Emoji.prohibited} Avoid</div>
         <div style={{ fontSize: 14, color: '#7A2020' }}>{plant.fertilizer.avoid}</div>
+      </div>
+      {/* Keep the edit action at the bottom-right after all fertilizer guidance. */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+        <Button onClick={() => setEditing(true)} icon={Emoji.edit} color="#4A8C3A">Edit information</Button>
       </div>
     </div>
   );

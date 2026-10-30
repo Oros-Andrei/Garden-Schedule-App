@@ -15,7 +15,8 @@ export const loadPlantSetup = (plant: Plant, soils: string[] = SOIL_OPTIONS): Pl
   const initialSoil = [...soils].sort((a, b) => b.length - a.length)
     .find(option => plant.substrate.toLowerCase().includes(option.toLowerCase())) ?? 'General';
   const defaults: PlantSetup = {
-    substrate: initialSoil, potType: 'Custom', potMaterial: plant.pot, potSize: plant.potSize, pottedOn: '', repotted: '',
+    substrate: initialSoil, potType: 'Custom', potMaterial: plant.pot, potSize: plant.potSize,
+    room: 'Not set', pottedOn: '', repotted: '',
   };
   try {
     const savedSetup = localStorage.getItem(`garden-setup-${plant.id}`);
@@ -26,6 +27,8 @@ export const loadPlantSetup = (plant: Plant, soils: string[] = SOIL_OPTIONS): Pl
         potType: typeof parsed.potType === 'string' && POT_TYPE_OPTIONS.includes(parsed.potType) ? parsed.potType : defaults.potType,
         potMaterial: typeof parsed.potMaterial === 'string' ? parsed.potMaterial : defaults.potMaterial,
         potSize: typeof parsed.potSize === 'string' ? parsed.potSize : defaults.potSize,
+        // Keep older setup records compatible with the new optional room field.
+        room: typeof parsed.room === 'string' ? parsed.room : defaults.room,
         pottedOn: typeof parsed.pottedOn === 'string' ? parsed.pottedOn : defaults.pottedOn,
         repotted: typeof parsed.repotted === 'string' ? parsed.repotted : defaults.repotted,
       };
@@ -100,6 +103,9 @@ const SetupTab: React.FC<SetupTabProps> = ({ plant, setup, setupDraft, editing, 
   const calendarPotted = editing ? setupDraft.pottedOn : setup.pottedOn;
   const calendarRepotted = editing ? setupDraft.repotted : setup.repotted;
   const nextRepotDate = getNextRepotDate(calendarPotted, calendarRepotted);
+  // Keep “Not set” as a placeholder, not a selectable room.
+  const roomOptions = Array.from(new Set([...options.rooms, setup.room, setupDraft.room]))
+    .filter(room => room && room !== 'Not set').map(room => ({ value: room, label: room }));
 
   return (
   <div className="setup-calendar-layout">
@@ -118,6 +124,8 @@ const SetupTab: React.FC<SetupTabProps> = ({ plant, setup, setupDraft, editing, 
             options={options.potMaterials.map(option => ({ value: option, label: option }))} />
           <div style={labelStyle(plant.accent)}>{Emoji.ruler} Pot size</div>
           <Dropdown ariaLabel="Pot size" value={setup.potSize} disabled accent={plant.accent} options={POT_SIZE_OPTIONS} />
+          <div style={labelStyle(plant.accent)}>{Emoji.house} Room</div>
+          <Dropdown ariaLabel="Room" value={setup.room || 'Not set'} placeholder="Not set" disabled accent={plant.accent} options={roomOptions} />
           <div style={labelStyle(plant.accent)}>{Emoji.calendar} Potted in</div>
           <DatePicker ariaLabel="Potted date" value={setup.pottedOn} disabled accent={plant.accent} />
           <div style={labelStyle(plant.accent)}>{Emoji.calendar} Repotted in</div>
@@ -148,6 +156,10 @@ const SetupTab: React.FC<SetupTabProps> = ({ plant, setup, setupDraft, editing, 
           <Dropdown ariaLabel="Pot size" value={setupDraft.potSize}
             onChange={potSize => onChange({ potSize })}
             accent={plant.accent} options={POT_SIZE_OPTIONS} />
+          <div style={labelStyle(plant.accent)}>{Emoji.house} Room</div>
+          <Dropdown ariaLabel="Room" value={setupDraft.room || 'Not set'}
+            onChange={room => onChange({ room })}
+            placeholder="Not set" accent={plant.accent} options={roomOptions} />
           <div style={labelStyle(plant.accent)}>{Emoji.calendar} Potted in</div>
           <DatePicker ariaLabel="Potted date" value={setupDraft.pottedOn}
             onChange={pottedOn => onChange({ pottedOn })} accent={plant.accent} />

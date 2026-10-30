@@ -17,9 +17,6 @@ const TricksTab: React.FC<{ plant: Plant; onSavePlantContent: (update: PlantProf
   );
   return (
   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-      <Button onClick={() => setEditing(true)} icon={Emoji.edit} color="#4A8C3A">Edit information</Button>
-    </div>
     {plant.tricks.map((trick, index) => (
       <div key={index} style={{ background: '#F5F9F0', borderRadius: 14, padding: '12px 14px', borderLeft: `4px solid ${plant.accent}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
@@ -29,6 +26,10 @@ const TricksTab: React.FC<{ plant: Plant; onSavePlantContent: (update: PlantProf
         <div style={{ fontSize: 14, color: '#3A5A2A', lineHeight: 1.55 }}>{trick.body}</div>
       </div>
     ))}
+    {/* Keep the edit action at the bottom-right after all tricks. */}
+    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 2 }}>
+      <Button onClick={() => setEditing(true)} icon={Emoji.edit} color="#4A8C3A">Edit information</Button>
+    </div>
   </div>
   );
 };

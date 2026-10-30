@@ -41,6 +41,8 @@ export const Emoji = {
   pill: '💊',
   lotionBottle: '🧴',
   calendar: '📅',
+  // Identify the room where the plant is kept.
+  house: '🏠',
   farmer: '🧑‍🌾',
   plus: '➕',
   // Use a tray glyph for exporting data into a downloaded file.

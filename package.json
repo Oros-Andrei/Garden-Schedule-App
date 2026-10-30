@@ -8,16 +8,26 @@
     "start": "webpack serve --port 8080 --open",
     "build": "webpack --mode production",
     "dev": "webpack serve --port 8080 --hot",
+    "android:sync": "npm run build && cap sync android",
+    "android:open": "cap open android",
+    "android:run": "npm run android:sync && cap run android",
+    "android:apk": "npm run android:sync && cd android && gradlew.bat assembleDebug",
     "desktop:dev": "npm run build && electron .",
     "package:win": "npm run build && electron-builder --win dir",
     "package:win:zip": "npm run build && electron-builder --win zip",
     "package:win:portable": "npm run build && electron-builder --win portable"
   },
   "dependencies": {
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/filesystem": "^8.1.5",
+    "@capacitor/preferences": "^8.0.1",
+    "@capacitor/share": "^8.0.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/cli": "^8.6.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "electron": "^45.0.0",

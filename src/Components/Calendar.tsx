@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { WEEKDAYS } from '../Resources/Constants';
 import { Emoji } from '../Resources/Emoji';
 import type { CalendarCareEvent, CareEvent, CareEventType, FertilizerMethod, GardenOptions } from '../Resources/GardenData';
@@ -23,8 +24,9 @@ interface PlantCalendarProps {
 // Keep source records attached so day details can remove the matching event.
 type CalendarEvent = { key: string; label: string; color: string; record?: CalendarCareEvent };
 
+// Match each calendar action to its requested water, plant-care, and pot color.
 const CARE_COLORS: Record<CareEventType, string> = {
-  watering: '#328B83', fertilizing: '#8B62A8', potted: '#4A86C5', repotted: '#C0574A',
+  watering: '#2787C9', fertilizing: '#91C96B', potted: '#8B5A2B', repotted: '#292929', location: '#F0C644',
 };
 
 const parseDate = (value: string): Date | null => {
@@ -44,6 +46,7 @@ const formatDate = (value: string): string => {
 };
 
 const Calendar: React.FC<PlantCalendarProps> = ({ plant, pottedOn, repotted, nextRepot, careEvents, plants, options, onLogCareEvent, onDeleteCareEvent }) => {
+  const isAndroid = Capacitor.getPlatform() === 'android';
   const [viewportHeight, setViewportHeight] = useState(() => window.innerHeight);
   const [visibleMonth, setVisibleMonth] = useState(() => {
     const today = new Date();
@@ -58,6 +61,8 @@ const Calendar: React.FC<PlantCalendarProps> = ({ plant, pottedOn, repotted, nex
   const [fertilizerMethod, setFertilizerMethod] = useState<FertilizerMethod | ''>('');
   const [eventPotMaterial, setEventPotMaterial] = useState('');
   const [eventSubstrate, setEventSubstrate] = useState('');
+  // Reset room selection with the other transient event-form values.
+  const [eventRoom, setEventRoom] = useState('');
 
   const resetEventForm = () => {
     setEventType('watering');
@@ -65,11 +70,17 @@ const Calendar: React.FC<PlantCalendarProps> = ({ plant, pottedOn, repotted, nex
     setFertilizerMethod('');
     setEventPotMaterial('');
     setEventSubstrate('');
+    setEventRoom('');
   };
 
   const openAddEvent = () => {
     resetEventForm();
     setAddingEvent(true);
+  };
+
+  // Keep taps focused on date selection; Android event details stay behind the Events action.
+  const selectCalendarDate = (dateValue: string) => {
+    setSelectedDate(dateValue);
   };
 
   const firstOffset = (visibleMonth.getDay() + 6) % 7;
@@ -82,6 +93,9 @@ const Calendar: React.FC<PlantCalendarProps> = ({ plant, pottedOn, repotted, nex
   const today = toDateValue(new Date());
   const monthLabel = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(visibleMonth);
   const changeMonth = (offset: number) => setVisibleMonth(current => new Date(current.getFullYear(), current.getMonth() + offset, 1));
+  // Ignore cached calendar records once their plant is no longer active.
+  const activePlantIds = new Set(plants.map(item => item.id));
+  const activeCareEvents = careEvents.filter(item => activePlantIds.has(item.plantId));
 
   useEffect(() => {
     const updateViewportHeight = () => setViewportHeight(window.innerHeight);
@@ -95,6 +109,10 @@ const Calendar: React.FC<PlantCalendarProps> = ({ plant, pottedOn, repotted, nex
       if (!fertilizerMethod) return;
       event.fertilizerMethod = fertilizerMethod;
     }
+    if (eventType === 'location') {
+      if (!eventRoom) return;
+      event.room = eventRoom;
+    }
     if (eventType === 'potted' || eventType === 'repotted') {
       if (!eventPotMaterial || !eventSubstrate) return;
       event.potMaterial = eventPotMaterial;
@@ -107,18 +125,18 @@ const Calendar: React.FC<PlantCalendarProps> = ({ plant, pottedOn, repotted, nex
 
   const eventsForDate = (dateValue: string): CalendarEvent[] => {
     const events: CalendarEvent[] = [];
-    if (dateValue === pottedOn && !careEvents.some(item => item.plantId === plant.id && item.event.type === 'potted' && item.event.date === dateValue)) {
+    if (dateValue === pottedOn && !activeCareEvents.some(item => item.plantId === plant.id && item.event.type === 'potted' && item.event.date === dateValue)) {
       const event: CareEvent = { id: `potted-${pottedOn}`, type: 'potted', date: pottedOn };
       events.push({ key: 'potted', label: `${plant.name} · Potted`, color: CARE_COLORS.potted,
         record: { plantId: plant.id, plantName: plant.name, event } });
     }
-    if (dateValue === repotted && !careEvents.some(item => item.plantId === plant.id && item.event.type === 'repotted' && item.event.date === dateValue)) {
+    if (dateValue === repotted && !activeCareEvents.some(item => item.plantId === plant.id && item.event.type === 'repotted' && item.event.date === dateValue)) {
       const event: CareEvent = { id: `repotted-${repotted}`, type: 'repotted', date: repotted };
       events.push({ key: 'repotted', label: `${plant.name} · Repotted`, color: CARE_COLORS.repotted,
         record: { plantId: plant.id, plantName: plant.name, event } });
     }
     if (dateValue === nextRepot) events.push({ key: 'next-repot', label: 'Next repot', color: '#D59A2A' });
-    careEvents.filter(item => item.event.date === dateValue).forEach(item => events.push({
+    activeCareEvents.filter(item => item.event.date === dateValue).forEach(item => events.push({
       key: `${item.plantId}-${item.event.id}`,
       label: `${item.plantName} · ${eventLabel(item.event)}`,
       color: CARE_COLORS[item.event.type],
@@ -126,9 +144,17 @@ const Calendar: React.FC<PlantCalendarProps> = ({ plant, pottedOn, repotted, nex
     }));
     return events;
   };
+  const selectedDayEvents = showEventsDate ? eventsForDate(showEventsDate) : [];
+  const addRecordFromDayDetails = () => {
+    if (!showEventsDate) return;
+    setSelectedDate(showEventsDate);
+    resetEventForm();
+    setShowEventsDate(null);
+    setAddingEvent(true);
+  };
 
   return (
-    <section aria-label={`${plant.name} calendar and care schedule`} style={{
+    <section className="garden-calendar" aria-label={`${plant.name} calendar and care schedule`} style={{
       minWidth: 0, padding: 16, border: '1px solid #DDE9D3', borderRadius: 22,
       background: 'linear-gradient(145deg,#FBFDF8,#F3F8EE)',
     }}>
@@ -140,8 +166,8 @@ const Calendar: React.FC<PlantCalendarProps> = ({ plant, pottedOn, repotted, nex
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,minmax(0,1fr))', gridTemplateRows: `auto repeat(${weekCount}, ${weekRowHeight}px)`, gap: 3 }}>
-        {WEEKDAYS.map(day => <div key={day} style={{ padding: '6px 2px', textAlign: 'center', color: '#71856A', fontSize: 11, fontWeight: 700, border: '1px solid #D8E2D2', borderRadius: 8, background: 'rgba(255,255,255,0.5)' }}>{day}</div>)}
+      <div className="garden-calendar-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(7,minmax(0,1fr))', gridTemplateRows: `auto repeat(${weekCount}, var(--garden-calendar-row-height, ${weekRowHeight}px))`, gap: 3 }}>
+        {WEEKDAYS.map(day => <div className="garden-calendar-weekday" key={day} style={{ padding: '6px 2px', textAlign: 'center', color: '#71856A', fontSize: 11, fontWeight: 700, border: '1px solid #D8E2D2', borderRadius: 8, background: 'rgba(255,255,255,0.5)' }}>{day}</div>)}
         {Array.from({ length: firstOffset }, (_, index) => <div key={`blank-${index}`} aria-hidden="true" style={{ height: '100%', boxSizing: 'border-box', border: '1px solid #D8E2D2', borderRadius: 9, background: '#F4F7F1' }} />)}
         {Array.from({ length: daysInMonth }, (_, index) => {
           const dateValue = toDateValue(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), index + 1));
@@ -150,13 +176,13 @@ const Calendar: React.FC<PlantCalendarProps> = ({ plant, pottedOn, repotted, nex
           const isSelected = dateValue === selectedDate;
           const ariaEvents = events.map(event => event.label).join(', ');
           return (
-            <div key={dateValue} role="group" tabIndex={0}
+            <div className="garden-calendar-cell" key={dateValue} role="group" tabIndex={0}
               aria-label={`${formatDate(dateValue)}${ariaEvents ? `: ${ariaEvents}` : ''}`}
-              onClick={() => setSelectedDate(dateValue)}
+              onClick={() => selectCalendarDate(dateValue)}
               onKeyDown={event => {
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault();
-                  setSelectedDate(dateValue);
+                  selectCalendarDate(dateValue);
                 }
               }}
               style={{
@@ -173,13 +199,23 @@ const Calendar: React.FC<PlantCalendarProps> = ({ plant, pottedOn, repotted, nex
                 }}>{index + 1}</span>
               </div>
               <div style={{ display: 'grid', gap: 2, marginTop: 2, overflow: 'hidden' }}>
-                {events.slice(0, visibleEventCount).map(event => <div key={event.key} title={event.label} style={{
+                {/* Use dark text on the lighter fertilizer and location chip backgrounds. */}
+                {events.slice(0, visibleEventCount).map(event => <div className="garden-calendar-event-label" key={event.key} title={event.label} style={{
                   overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', borderRadius: 3,
-                  padding: '2px 3px', background: event.color, color: 'white', fontSize: 9, lineHeight: 1.15,
+                  padding: '2px 3px', background: event.color,
+                  color: event.color === CARE_COLORS.fertilizing || event.color === CARE_COLORS.location ? '#26351F' : 'white',
+                  fontSize: 9, lineHeight: 1.15,
                 }}>{event.label}</div>)}
-                {events.length > visibleEventCount && <div style={{ color: '#65745E', fontSize: 9, paddingLeft: 2 }}>+{events.length - visibleEventCount} more</div>}
+                {events.length > visibleEventCount && <div className="garden-calendar-event-overflow" style={{ color: '#65745E', fontSize: 9, paddingLeft: 2 }}>+{events.length - visibleEventCount} more</div>}
+                {/* Show up to six phone markers in two rows without hiding event details from accessibility. */}
+                {events.length > 0 && <div className="garden-calendar-event-markers" aria-hidden="true" style={{ display: 'none' }}>
+                  <div className="garden-calendar-event-dot-grid">
+                    {events.slice(0, 6).map(event => <span className="garden-calendar-event-dot" key={event.key} style={{ background: event.color }} />)}
+                  </div>
+                  {events.length > 6 && <span className="garden-calendar-event-count">+{events.length - 6}</span>}
+                </div>}
               </div>
-              {isSelected && <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginTop: 'auto', paddingTop: 3 }}>
+              {isSelected && <div className="calendar-cell-actions" style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginTop: 'auto', paddingTop: 3 }}>
                 <Button onClick={openAddEvent} icon={Emoji.plus} ariaLabel={`Add event on ${formatDate(dateValue)}`} color={plant.accent} size="compact">{''}</Button>
                 {events.length > 0 && <Button onClick={() => setShowEventsDate(dateValue)} icon={Emoji.magnifyingGlass}
                   ariaLabel={`View ${events.length} event${events.length === 1 ? '' : 's'} on ${formatDate(dateValue)}`} color={plant.accent} size="compact">{''}</Button>}
@@ -188,6 +224,19 @@ const Calendar: React.FC<PlantCalendarProps> = ({ plant, pottedOn, repotted, nex
           );
         })}
         {Array.from({ length: trailingOffset }, (_, index) => <div key={`trailing-${index}`} aria-hidden="true" style={{ height: '100%', boxSizing: 'border-box', border: '1px solid #D8E2D2', borderRadius: 9, background: '#F4F7F1' }} />)}
+      </div>
+
+      {/* Keep Android date actions outside the narrow day cells to prevent button overlap. */}
+      <div className="calendar-selected-actions" aria-label={`Actions for ${formatDate(selectedDate)}`} style={{ display: 'none' }}>
+        <div style={{ minWidth: 0, display: 'grid', gap: 2 }}>
+          <strong style={{ color: '#344B2E', fontSize: 12 }}>{formatDate(selectedDate)}</strong>
+          <span style={{ color: '#71856A', fontSize: 10 }}>{eventsForDate(selectedDate).length} events</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Button onClick={openAddEvent} icon={Emoji.plus} ariaLabel={`Add event on ${formatDate(selectedDate)}`} color={plant.accent} size="compact">Add</Button>
+          {eventsForDate(selectedDate).length > 0 && <Button onClick={() => setShowEventsDate(selectedDate)} icon={Emoji.magnifyingGlass}
+            ariaLabel={`View events on ${formatDate(selectedDate)}`} color={plant.accent} size="compact">Events</Button>}
+        </div>
       </div>
 
       {addingEvent && <div role="presentation" style={{
@@ -212,8 +261,15 @@ const Calendar: React.FC<PlantCalendarProps> = ({ plant, pottedOn, repotted, nex
                 options={[
                   { value: 'watering', label: 'Watered' }, { value: 'fertilizing', label: 'Fertilized' },
                   { value: 'potted', label: 'Potted' }, { value: 'repotted', label: 'Repotted' },
+                  { value: 'location', label: 'Location' },
                 ]} />
             </div>
+            {eventType === 'location' && <div>
+              {/* Require an Add info room so Location entries stay consistent with setup choices. */}
+              <div style={{ marginBottom: 6, color: '#53684B', fontSize: 12, fontWeight: 700 }}>Room</div>
+              <Dropdown ariaLabel="Room for location event" value={eventRoom} onChange={setEventRoom} accent={plant.accent}
+                placeholder="Choose a room" options={options.rooms.map(value => ({ value, label: value }))} />
+            </div>}
             {eventType === 'fertilizing' && <div>
               <div style={{ marginBottom: 6, color: '#53684B', fontSize: 12, fontWeight: 700 }}>Fertilizer</div>
               <Dropdown ariaLabel="Fertilizer type" value={fertilizerMethod} onChange={value => setFertilizerMethod(value as FertilizerMethod)} accent={plant.accent}
@@ -236,6 +292,7 @@ const Calendar: React.FC<PlantCalendarProps> = ({ plant, pottedOn, repotted, nex
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 14 }}>
             <Button onClick={addCareEvent} icon={Emoji.seedling} color="#4A8C3A"
               disabled={(eventType === 'fertilizing' && !fertilizerMethod)
+                || (eventType === 'location' && !eventRoom)
                 || ((eventType === 'potted' || eventType === 'repotted') && (!eventPotMaterial || !eventSubstrate))}>Save</Button>
             <Button onClick={() => setAddingEvent(false)} icon={Emoji.wiltedFlower} color="#C04040">Cancel</Button>
           </div>
@@ -257,7 +314,8 @@ const Calendar: React.FC<PlantCalendarProps> = ({ plant, pottedOn, repotted, nex
           <h2 id="calendar-day-events-title" style={{ margin: '0 0 4px', color: '#2A4A1A', fontSize: 19 }}>Events for this day</h2>
           <div style={{ marginBottom: 16, color: '#71856A', fontSize: 13 }}>{formatDate(showEventsDate)}</div>
           <div style={{ display: 'grid', gap: 8 }}>
-            {eventsForDate(showEventsDate).map(event => <div key={event.key} style={{
+            {isAndroid && selectedDayEvents.length === 0 && <div style={{ padding: '10px 2px', color: '#71856A', fontSize: 13 }}>No records on this day yet.</div>}
+            {selectedDayEvents.map(event => <div key={event.key} style={{
               display: 'flex', alignItems: 'center', gap: 9, padding: '9px 10px', borderRadius: 10,
               background: `${event.color}14`, color: '#40563A', fontSize: 13,
             }}>
@@ -270,7 +328,8 @@ const Calendar: React.FC<PlantCalendarProps> = ({ plant, pottedOn, repotted, nex
               </Button>}
             </div>)}
           </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
+            {isAndroid && <Button onClick={addRecordFromDayDetails} icon={Emoji.plus} color={plant.accent}>Add record</Button>}
             <Button onClick={() => setShowEventsDate(null)} color={plant.accent}>Close</Button>
           </div>
         </StyledScrollArea>
@@ -312,9 +371,11 @@ const monthButtonStyle = (accent: string): React.CSSProperties => ({
   background: 'white', color: accent, fontSize: 22, lineHeight: 1, cursor: 'pointer',
 });
 
+// Include the chosen room in calendar labels so location records are identifiable.
 const eventLabel = (event: CareEvent): string => {
   if (event.type === 'watering') return 'Watered';
   if (event.type === 'fertilizing') return `Fertilized${event.fertilizerMethod ? ` · ${event.fertilizerMethod}` : ''}`;
+  if (event.type === 'location') return `Location${event.room ? ` · ${event.room}` : ''}`;
   if (event.type === 'potted' || event.type === 'repotted') {
     const action = event.type === 'potted' ? 'Potted' : 'Repotted';
     const details = [event.potMaterial, event.substrate].filter(Boolean).join(' · ');

@@ -1,6 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+import { flushAndroidDataStore } from './Resources/AndroidDataStore';
 import { CATEGORIES, FERTILIZER_OPTIONS, PLANTS, POT_MATERIAL_OPTIONS, SOIL_OPTIONS } from './Resources/Constants';
 import type { CareEvent, GardenData, GardenOptions, PlantProfileContentUpdate, PlantSetup, SavedCategory, SavedPlant } from './Resources/GardenData';
+import { mergeGardenBackups, parseGardenBackup } from './Resources/GardenBackup';
+import { androidStyles } from './Resources/AndroidStyles';
 import type { Plant } from './Resources/Types';
 import { CustomPlantIcon } from './Resources/Icons';
 import { Emoji } from './Resources/Emoji';
@@ -18,7 +24,10 @@ const MAX_PLANT_PHOTO_OUTPUT_BYTES = 300 * 1024;
 const compressPlantPhoto = async (file: File): Promise<string> => {
   if (!file.type.startsWith('image/')) throw new Error('Choose an image file.');
   if (file.size > MAX_PLANT_PHOTO_INPUT_BYTES) throw new Error('Choose a photo that is 10 MB or less.');
-  const bitmap = await createImageBitmap(file);
+  // Ask Android's image decoder to shrink the bitmap before canvas work to reduce peak memory.
+  const bitmap = Capacitor.getPlatform() === 'android'
+    ? await createImageBitmap(file, { resizeWidth: 1200, resizeQuality: 'high' })
+    : await createImageBitmap(file);
   try {
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
@@ -74,7 +83,7 @@ const loadBuiltInProfileOverrides = (): SavedPlant[] => {
   } catch { return []; }
 };
 
-const emptyCustomOptions: GardenOptions = { fertilizers: [], potMaterials: [], soils: [] };
+const emptyCustomOptions: GardenOptions = { fertilizers: [], potMaterials: [], soils: [], rooms: [] };
 
 const loadCustomOptions = (): GardenOptions => {
   try {
@@ -85,6 +94,7 @@ const loadCustomOptions = (): GardenOptions => {
       fertilizers: Array.isArray(options.fertilizers) ? options.fertilizers.filter((item): item is string => typeof item === 'string') : [],
       potMaterials: Array.isArray(options.potMaterials) ? options.potMaterials.filter((item): item is string => typeof item === 'string') : [],
       soils: Array.isArray(options.soils) ? options.soils.filter((item): item is string => typeof item === 'string') : [],
+      rooms: Array.isArray(options.rooms) ? options.rooms.filter((item): item is string => typeof item === 'string') : [],
     };
   } catch { return emptyCustomOptions; }
 };
@@ -129,10 +139,10 @@ const customCategoryPalette = [
   '#9B3A36', '#536D87', '#6A7F27', '#72518B', '#AD5A18',
 ];
 const optionDefaults: GardenOptions = {
-  fertilizers: FERTILIZER_OPTIONS, potMaterials: POT_MATERIAL_OPTIONS, soils: SOIL_OPTIONS,
+  fertilizers: FERTILIZER_OPTIONS, potMaterials: POT_MATERIAL_OPTIONS, soils: SOIL_OPTIONS, rooms: [],
 };
 const optionLabels: Record<keyof GardenOptions, string> = {
-  fertilizers: 'Fertilizer types', potMaterials: 'Pot materials', soils: 'Soil types',
+  fertilizers: 'Fertilizer types', potMaterials: 'Pot materials', soils: 'Soil types', rooms: 'Rooms',
 };
 // Explain what each Settings add action creates instead of repeating saved values.
 const settingsDescriptions: Record<'categories' | keyof GardenOptions, string> = {
@@ -140,17 +150,23 @@ const settingsDescriptions: Record<'categories' | keyof GardenOptions, string> =
   fertilizers: 'Add a fertilizer type for plant care.',
   potMaterials: 'Add a pot material for plant setup.',
   soils: 'Add a soil type for plant setup.',
+  rooms: 'Add a room to record where you keep a plant.',
 };
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 const App: React.FC = () => {
+  // Keep native-only controls and styling out of browser and Electron windows.
+  const isAndroid = Capacitor.getPlatform() === 'android';
   const [selectedId, setSelectedId]   = useState<string | null>(null);
+  // Keep Android's plant home and shared calendar as separate destinations.
+  const [androidMainTab, setAndroidMainTab] = useState<'home' | 'calendar'>('home');
   const [customCategories, setCustomCategories] = useState<SavedCategory[]>(loadCustomCategories);
   const [customPlantRecords, setCustomPlantRecords] = useState<SavedPlant[]>(loadCustomPlants);
   const [builtInProfileOverrides, setBuiltInProfileOverrides] = useState<SavedPlant[]>(loadBuiltInProfileOverrides);
   const [plantPhotos, setPlantPhotos] = useState<Record<string, string>>(() => window.gardenInitialPhotos ?? {});
   const [photoMessage, setPhotoMessage] = useState<string | null>(null);
   const [customOptions, setCustomOptions] = useState<GardenOptions>(loadCustomOptions);
+  const [categoryColorDraft, setCategoryColorDraft] = useState(customCategoryPalette[0]);
   const [deletedPlantIds, setDeletedPlantIds] = useState<string[]>(() => loadDeletedIds('garden-deleted-plant-ids'));
   const [deletedCategoryIds, setDeletedCategoryIds] = useState<string[]>(() => loadDeletedIds('garden-deleted-category-ids'));
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -159,15 +175,16 @@ const App: React.FC = () => {
   const [deleteConfirmation, setDeleteConfirmation] = useState<{ message: string; onConfirm: () => Promise<void> } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const categoryMenuRef = useRef<HTMLDivElement>(null);
+  // Keep the Android backup picker native to the WebView rather than Electron.
+  const backupFileInputRef = useRef<HTMLInputElement>(null);
   const [addingPlantCategoryId, setAddingPlantCategoryId] = useState<string | null>(null);
   const [categoryNameDraft, setCategoryNameDraft] = useState('');
-  const [optionDrafts, setOptionDrafts] = useState<Record<keyof GardenOptions, string>>({ fertilizers: '', potMaterials: '', soils: '' });
+  const [optionDrafts, setOptionDrafts] = useState<Record<keyof GardenOptions, string>>({ fertilizers: '', potMaterials: '', soils: '', rooms: '' });
   const [plantNameDraft, setPlantNameDraft] = useState('');
   const [plantLatinDraft, setPlantLatinDraft] = useState('');
   const [plantCategoryDraft, setPlantCategoryDraft] = useState('');
-  const [openCats,   setOpenCats]     = useState<Record<string, boolean>>({
-    succulents: true, tropicals: true, citrus: true, vegetables: true,
-  });
+  // Start the home view compact with every category collapsed.
+  const [openCats, setOpenCats] = useState<Record<string, boolean>>({});
 
   // Load browser photos from IndexedDB; desktop photos arrive with the garden data file.
   useEffect(() => {
@@ -220,7 +237,9 @@ const App: React.FC = () => {
   const categories = [
     ...CATEGORIES.filter(category => !deletedCategoryIdSet.has(category.id)),
     ...customCategories.filter(category => !deletedCategoryIdSet.has(category.id)).map((category, index) => {
-      const color = customCategoryPalette[index % customCategoryPalette.length];
+      // Prefer the user's saved choice and retain a palette fallback for older categories.
+      const color = category.color && /^#[0-9A-Fa-f]{6}$/.test(category.color)
+        ? category.color : customCategoryPalette[index % customCategoryPalette.length];
       return { id: category.id, label: category.name, emoji: Emoji.seedling, color, bg: `${color}20` };
     }),
   ];
@@ -229,10 +248,13 @@ const App: React.FC = () => {
     fertilizers: Array.from(new Set([...optionDefaults.fertilizers, ...customOptions.fertilizers])),
     potMaterials: Array.from(new Set([...optionDefaults.potMaterials, ...customOptions.potMaterials])),
     soils: Array.from(new Set([...optionDefaults.soils, ...customOptions.soils])),
+    rooms: Array.from(new Set([...optionDefaults.rooms, ...customOptions.rooms])),
   };
   const selectedPlant = plants.find(p => p.id === selectedId) ?? null;
 
   const handleSelect = (id: string) => {
+    // Opening a plant always returns Android to its Home profile.
+    if (isAndroid) setAndroidMainTab('home');
     setSelectedId(prev => (prev === id ? null : id));
   };
 
@@ -269,7 +291,8 @@ const App: React.FC = () => {
       return;
     }
     const id = `custom-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${Date.now()}`;
-    const record: SavedCategory = { id, name };
+    // Store the selected swatch with the category so its color survives reloads and backups.
+    const record: SavedCategory = { id, name, color: categoryColorDraft };
     try {
       if (window.gardenDesktop) await window.gardenDesktop.saveCustomCategory(record);
       const updated = [...customCategories, record];
@@ -278,6 +301,7 @@ const App: React.FC = () => {
       setCustomCategories(updated);
       setOpenCats(current => ({ ...current, [id]: true }));
       setCategoryNameDraft('');
+      setCategoryColorDraft(customCategoryPalette[0]);
     } catch (error) {
       console.error('Unable to save the category.', error);
       window.alert('The category could not be saved.');
@@ -493,6 +517,7 @@ const App: React.FC = () => {
           potType: typeof savedSetup.potType === 'string' ? savedSetup.potType : 'Custom',
           potMaterial: typeof savedSetup.potMaterial === 'string' ? savedSetup.potMaterial : plant.pot,
           potSize: typeof savedSetup.potSize === 'string' ? savedSetup.potSize : plant.potSize,
+          room: typeof savedSetup.room === 'string' ? savedSetup.room : 'Not set',
           pottedOn: typeof savedSetup.pottedOn === 'string' ? savedSetup.pottedOn : '',
           repotted: typeof savedSetup.repotted === 'string' ? savedSetup.repotted : '',
         };
@@ -525,8 +550,17 @@ const App: React.FC = () => {
 
   const exportGardenData = async () => {
     try {
+      if (isAndroid) await flushAndroidDataStore();
       const backup = await window.gardenDesktop?.load() ?? createBrowserBackup();
-      const content = new Blob([`${JSON.stringify(backup, null, 2)}\n`], { type: 'application/json' });
+      const backupText = `${JSON.stringify(backup, null, 2)}\n`;
+      if (isAndroid) {
+        // Send an app-cache copy through Android's system share sheet for saving or transferring.
+        const path = `garden-data-${new Date().toISOString().slice(0, 10)}.json`;
+        const file = await Filesystem.writeFile({ path, data: backupText, directory: Directory.Cache, encoding: Encoding.UTF8 });
+        await Share.share({ title: 'Garden Schedule backup', text: 'Garden Schedule JSON backup', url: file.uri, dialogTitle: 'Share garden backup' });
+        return;
+      }
+      const content = new Blob([backupText], { type: 'application/json' });
       const url = URL.createObjectURL(content);
       const link = document.createElement('a');
       link.href = url;
@@ -540,14 +574,69 @@ const App: React.FC = () => {
   };
 
   const importGardenData = async () => {
-    if (!window.gardenDesktop) return;
     if (!window.confirm('Import a garden backup? Matching plant records in this app will be replaced by the backup.')) return;
+    if (!window.gardenDesktop) {
+      backupFileInputRef.current?.click();
+      return;
+    }
     try {
       const imported = await window.gardenDesktop.importData();
       if (!imported) return;
       window.location.reload();
     } catch (error) {
       console.error('Unable to import the garden data file.', error);
+      window.alert('That garden data file could not be imported. Your current data was left unchanged.');
+    }
+  };
+
+  // Merge imported browser backups using the same ID and deletion rules as desktop imports.
+  const importBrowserBackup = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = '';
+    if (!file) return;
+    try {
+      const incoming = parseGardenBackup(JSON.parse(await file.text()) as unknown);
+      const current = createBrowserBackup();
+      const merged = mergeGardenBackups(current, incoming);
+      const mergedIds = new Set(merged.plants.map(plant => plant.id));
+      const replacedIds = new Set(incoming.plants.map(plant => plant.id));
+      const removedIds = new Set([
+        ...current.plants.map(plant => plant.id),
+        ...incoming.plants.map(plant => plant.id),
+        ...merged.deletedPlantIds,
+      ].filter(id => !mergedIds.has(id)));
+
+      localStorage.setItem('garden-custom-categories', JSON.stringify(merged.categories));
+      localStorage.setItem('garden-custom-plants', JSON.stringify(merged.plants.filter(plant => plant.source === 'custom')));
+      localStorage.setItem('garden-built-in-profile-overrides', JSON.stringify(merged.plants.filter(plant =>
+        plant.source === 'built-in' && (plant.details || plant.fertilizer || plant.tricks || plant.diseases))));
+      localStorage.setItem('garden-custom-options', JSON.stringify(merged.customOptions));
+      localStorage.setItem('garden-deleted-plant-ids', JSON.stringify(merged.deletedPlantIds));
+      localStorage.setItem('garden-deleted-category-ids', JSON.stringify(merged.deletedCategoryIds));
+
+      const mergedPlantsById = new Map(merged.plants.map(plant => [plant.id, plant]));
+      for (const plantId of replacedIds) {
+        const plant = mergedPlantsById.get(plantId);
+        if (!plant) {
+          localStorage.removeItem(`garden-setup-${plantId}`);
+          localStorage.removeItem(`garden-care-events-${plantId}`);
+          continue;
+        }
+        if (plant.setup) localStorage.setItem(`garden-setup-${plantId}`, JSON.stringify(plant.setup));
+        else localStorage.removeItem(`garden-setup-${plantId}`);
+        if (plant.careEvents) localStorage.setItem(`garden-care-events-${plantId}`, JSON.stringify(plant.careEvents));
+        else localStorage.removeItem(`garden-care-events-${plantId}`);
+        if (typeof plant.photo === 'string') await saveBrowserPlantPhoto(plantId, plant.photo);
+        else await removePlantPhotos([plantId]);
+      }
+      for (const plantId of removedIds) {
+        localStorage.removeItem(`garden-setup-${plantId}`);
+        localStorage.removeItem(`garden-care-events-${plantId}`);
+        await removePlantPhotos([plantId]);
+      }
+      window.location.reload();
+    } catch (error) {
+      console.error('Unable to import the garden backup.', error);
       window.alert('That garden data file could not be imported. Your current data was left unchanged.');
     }
   };
@@ -562,11 +651,13 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="garden-app" style={{
+    <div className={`garden-app${isAndroid ? ' android-app' : ''}`} style={{
       fontFamily: "'Quicksand', 'Trebuchet MS', sans-serif",
       background: 'linear-gradient(135deg,#F0F7E8 0%,#E8F4E0 50%,#F5EFE0 100%)',
       minHeight: '100vh',
     }}>
+      {/* Android uses the WebView file chooser to select a JSON backup. */}
+      <input ref={backupFileInputRef} type="file" accept="application/json,.json" onChange={importBrowserBackup} style={{ display: 'none' }} />
       <style>{`
         html { scrollbar-gutter: stable; }
         @media (min-width: 800px) {
@@ -594,7 +685,7 @@ const App: React.FC = () => {
         @media (max-width: 480px) {
           .setup-grid { grid-template-columns: max-content minmax(0, 1fr); column-gap: 6px; row-gap: 12px; }
         }
-      `}</style>
+      `}{isAndroid && androidStyles}</style>
 
       {/* ── Header ── */}
       <div className="garden-header" style={{ textAlign: 'center', padding: '28px 20px 18px' }}>
@@ -614,7 +705,7 @@ const App: React.FC = () => {
       </div>
 
       {/* ── Two-column layout ── */}
-      <div className={`garden-layout${selectedPlant ? ' has-selection' : ''}`} style={{ padding: '0 14px 32px', maxWidth: 480, margin: '0 auto' }}>
+      <div className={`garden-layout${selectedPlant ? ' has-selection' : ''}${isAndroid && androidMainTab === 'calendar' ? ' android-calendar-active' : ''}`} style={{ padding: '0 14px 32px', maxWidth: 480, margin: '0 auto' }}>
 
         {/* LEFT — categories + plant grid */}
         {/* Keep the category list independently scrollable with the shared scrollbar. */}
@@ -631,7 +722,9 @@ const App: React.FC = () => {
                   background: 'rgba(255,255,255,0.98)',
                   boxShadow: '0 8px 22px rgba(35,65,25,0.16)',
                 }}>
-                  <Button onClick={() => { setMenuOpen(false); setSettingsOpen(true); }} icon="⚙️" color="#4A8C3A">Settings</Button>
+                  <Button onClick={() => { setMenuOpen(false); setSettingsOpen(true); }} icon={Emoji.plus} color="#4A8C3A">Add info</Button>
+                  {/* Offer backup import on Android, where there is no Electron file dialog. */}
+                  {isAndroid && <Button onClick={() => { setMenuOpen(false); importGardenData(); }} icon="📂" color="#4A8C3A">Import JSON backup</Button>}
                   <Button onClick={() => { setMenuOpen(false); exportGardenData(); }} icon={Emoji.download} color="#4A8C3A">Export JSON backup</Button>
                 </div>
               )}
@@ -752,7 +845,7 @@ const App: React.FC = () => {
         </StyledScrollArea>
 
         {/* RIGHT — detail panel or empty state */}
-        {selectedPlant ? (
+        {selectedPlant && (!isAndroid || androidMainTab === 'home') && (
           // Match the detail panel scrollbar to the rest of the app's bounded panels.
           <StyledScrollArea className="garden-detail" ariaLabel={`${selectedPlant.name} plant details`}>
             <PlantDetail key={selectedPlant.id} plant={selectedPlant} plants={plants} options={availableOptions}
@@ -760,7 +853,8 @@ const App: React.FC = () => {
               onSavePlantContent={update => savePlantProfileContent(selectedPlant, update)}
               onDelete={() => requestDeletePlant(selectedPlant.id)} />
           </StyledScrollArea>
-        ) : (
+        )}
+        {(isAndroid ? androidMainTab === 'calendar' : !selectedPlant) && (
           <div className="garden-empty">
             {/* Reload cached calendar events when the plant roster changes. */}
             <GardenCalendar key={plants.map(plant => plant.id).join('|')} plants={plants} options={availableOptions} />
@@ -769,14 +863,22 @@ const App: React.FC = () => {
 
       </div>
 
+      {/* Separate Android tab buttons and give each circle a clear layered shadow. */}
+      {isAndroid && <nav className="android-bottom-tabs" aria-label="Main navigation">
+        <Button children={null} onClick={() => setAndroidMainTab('home')} icon={Emoji.house} color={androidMainTab === 'home' ? '#4A8C3A' : '#829277'}
+          ariaLabel="Home" title="Home" style={{ boxSizing: 'border-box', width: 54, height: 54, minWidth: 54, minHeight: 54, padding: 0, borderRadius: '50%', background: androidMainTab === 'home' ? '#E1F0D8' : '#FFFFFF', boxShadow: '0 0 0 6px rgba(250,253,248,0.98), 0 4px 0 rgba(53,91,43,0.2), 0 9px 14px rgba(35,65,25,0.28)' }} />
+        <Button children={null} onClick={() => setAndroidMainTab('calendar')} icon={Emoji.calendar} color={androidMainTab === 'calendar' ? '#4A8C3A' : '#829277'}
+          ariaLabel="Calendar" title="Calendar" style={{ boxSizing: 'border-box', width: 54, height: 54, minWidth: 54, minHeight: 54, padding: 0, borderRadius: '50%', background: androidMainTab === 'calendar' ? '#E1F0D8' : '#FFFFFF', boxShadow: '0 0 0 6px rgba(250,253,248,0.98), 0 4px 0 rgba(53,91,43,0.2), 0 9px 14px rgba(35,65,25,0.28)' }} />
+      </nav>}
+
       {settingsOpen && <div style={modalBackdropStyle}>
-        {/* Keep long settings content inside a themed, accessible scroll area. */}
-        <StyledScrollArea role="dialog" ariaLabel="Garden settings" ariaModal ariaLabelledBy="settings-title"
+        {/* Keep Add info content scrollable and use the X as its only close action. */}
+        <StyledScrollArea role="dialog" ariaLabel="Add info" ariaModal ariaLabelledBy="settings-title"
           style={{ ...modalStyle, maxHeight: 'min(86vh, 780px)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <h2 id="settings-title" style={{ ...modalTitleStyle, margin: 0 }}>Garden settings</h2>
+            <h2 id="settings-title" style={{ ...modalTitleStyle, margin: 0 }}>Add info</h2>
             {/* Match the plant profile's circular close control for quick access. */}
-            <button type="button" onClick={() => setSettingsOpen(false)} aria-label="Close settings" title="Close settings"
+            <button type="button" onClick={() => setSettingsOpen(false)} aria-label="Close Add info" title="Close Add info"
               style={{
                 width: 34, height: 34, border: '1px solid rgba(80,80,80,0.2)', borderRadius: '50%',
                 background: 'rgba(255,255,255,0.75)', color: '#4A5A3A', fontSize: 22,
@@ -791,6 +893,15 @@ const App: React.FC = () => {
               <div style={settingsEntryRowStyle}>
                 <input id="new-category-name" required value={categoryNameDraft} onChange={event => setCategoryNameDraft(event.target.value)} style={fieldStyle} />
                 <Button type="submit" icon={Emoji.plus} color="#4A8C3A">Add</Button>
+              </div>
+              <div role="group" aria-label="Choose category color" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, paddingTop: 4 }}>
+                {customCategoryPalette.map(color => <button key={color} type="button" aria-label={`Use category color ${color}`}
+                  aria-pressed={categoryColorDraft === color} title={color} onClick={() => setCategoryColorDraft(color)}
+                  style={{ width: 27, height: 27, padding: 0, borderRadius: '50%', border: '2px solid white',
+                    background: color, cursor: 'pointer', boxShadow: categoryColorDraft === color ? `0 0 0 2px ${color}` : '0 1px 3px rgba(30,50,20,0.25)',
+                    color: 'white', fontSize: 15, lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.7)' }}>
+                  {categoryColorDraft === color ? '✓' : ''}
+                </button>)}
               </div>
             </form>
             <p style={settingsDescriptionStyle}>{settingsDescriptions.categories}</p>
@@ -811,9 +922,6 @@ const App: React.FC = () => {
             </section>
           ))}
 
-          <div style={modalActionsStyle}>
-            <Button onClick={() => setSettingsOpen(false)} icon={Emoji.wiltedFlower} color="#C04040">Cancel</Button>
-          </div>
         </StyledScrollArea>
       </div>}
 

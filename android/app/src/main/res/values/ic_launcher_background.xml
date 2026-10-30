@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Match the adaptive launcher background to the garden icon palette. -->
+    <color name="ic_launcher_background">#AFC79F</color>
+</resources>
