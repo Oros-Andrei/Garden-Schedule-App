@@ -2,7 +2,8 @@ import React from 'react';
 
 interface ButtonProps {
   children: React.ReactNode;
-  onClick: () => void;
+  // Let submit buttons rely on their parent form's submit handler.
+  onClick?: () => void;
   icon?: React.ReactNode | null;
   color?: string;
   type?: 'button' | 'submit' | 'reset';
@@ -10,11 +11,13 @@ interface ButtonProps {
   title?: string;
   ariaLabel?: string;
   size?: 'compact' | 'regular';
+  // Allow small contextual actions to retain shared button behavior and styling.
+  style?: React.CSSProperties;
 }
 
 const Button: React.FC<ButtonProps> = ({
   children,
-  onClick,
+  onClick = () => {},
   icon = null,
   color = '#4A8C3A',
   type = 'button',
@@ -22,6 +25,7 @@ const Button: React.FC<ButtonProps> = ({
   title,
   ariaLabel,
   size = 'regular',
+  style,
 }) => (
   <button
     type={type}
@@ -38,6 +42,7 @@ const Button: React.FC<ButtonProps> = ({
       font: `700 14px 'Quicksand', 'Trebuchet MS', sans-serif`,
       whiteSpace: 'nowrap', cursor: disabled ? 'not-allowed' : 'pointer',
       opacity: disabled ? 0.5 : 1, transition: 'background 0.15s, border-color 0.15s',
+      ...style,
     }}
   >
     {icon != null && <span aria-hidden="true">{icon}</span>}

@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { POT_MATERIAL_OPTIONS, SOIL_OPTIONS, WEEKDAYS } from '../Resources/Constants';
+import { WEEKDAYS } from '../Resources/Constants';
 import { Emoji } from '../Resources/Emoji';
-import type { CalendarCareEvent, CareEvent, CareEventType, FertilizerMethod } from '../Resources/GardenData';
+import type { CalendarCareEvent, CareEvent, CareEventType, FertilizerMethod, GardenOptions } from '../Resources/GardenData';
 import type { Plant } from '../Resources/Types';
 import Button from './Button';
+import StyledScrollArea from './StyledScrollArea';
 import Dropdown from './Dropdown';
 
 interface PlantCalendarProps {
@@ -13,10 +14,14 @@ interface PlantCalendarProps {
   nextRepot: string;
   careEvents: CalendarCareEvent[];
   plants: Plant[];
+  // Settings-provided lists keep all event choices synchronized with the settings dialog.
+  options: GardenOptions;
   onLogCareEvent: (plantId: string, event: CareEvent) => void;
+  onDeleteCareEvent: (plantId: string, event: CareEvent) => void;
 }
 
-type CalendarEvent = { key: string; label: string; color: string };
+// Keep source records attached so day details can remove the matching event.
+type CalendarEvent = { key: string; label: string; color: string; record?: CalendarCareEvent };
 
 const CARE_COLORS: Record<CareEventType, string> = {
   watering: '#328B83', fertilizing: '#8B62A8', potted: '#4A86C5', repotted: '#C0574A',
@@ -38,7 +43,7 @@ const formatDate = (value: string): string => {
   return date ? new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric' }).format(date) : 'Not set';
 };
 
-const Calendar: React.FC<PlantCalendarProps> = ({ plant, pottedOn, repotted, nextRepot, careEvents, plants, onLogCareEvent }) => {
+const Calendar: React.FC<PlantCalendarProps> = ({ plant, pottedOn, repotted, nextRepot, careEvents, plants, options, onLogCareEvent, onDeleteCareEvent }) => {
   const [viewportHeight, setViewportHeight] = useState(() => window.innerHeight);
   const [visibleMonth, setVisibleMonth] = useState(() => {
     const today = new Date();
@@ -47,6 +52,7 @@ const Calendar: React.FC<PlantCalendarProps> = ({ plant, pottedOn, repotted, nex
   const [selectedDate, setSelectedDate] = useState(() => toDateValue(new Date()));
   const [addingEvent, setAddingEvent] = useState(false);
   const [showEventsDate, setShowEventsDate] = useState<string | null>(null);
+  const [pendingDeleteEvent, setPendingDeleteEvent] = useState<{ record: CalendarCareEvent; label: string } | null>(null);
   const [eventType, setEventType] = useState<CareEventType>('watering');
   const [eventPlantId, setEventPlantId] = useState(plant.id);
   const [fertilizerMethod, setFertilizerMethod] = useState<FertilizerMethod | ''>('');
@@ -102,16 +108,21 @@ const Calendar: React.FC<PlantCalendarProps> = ({ plant, pottedOn, repotted, nex
   const eventsForDate = (dateValue: string): CalendarEvent[] => {
     const events: CalendarEvent[] = [];
     if (dateValue === pottedOn && !careEvents.some(item => item.plantId === plant.id && item.event.type === 'potted' && item.event.date === dateValue)) {
-      events.push({ key: 'potted', label: `${plant.name} · Potted`, color: CARE_COLORS.potted });
+      const event: CareEvent = { id: `potted-${pottedOn}`, type: 'potted', date: pottedOn };
+      events.push({ key: 'potted', label: `${plant.name} · Potted`, color: CARE_COLORS.potted,
+        record: { plantId: plant.id, plantName: plant.name, event } });
     }
     if (dateValue === repotted && !careEvents.some(item => item.plantId === plant.id && item.event.type === 'repotted' && item.event.date === dateValue)) {
-      events.push({ key: 'repotted', label: `${plant.name} · Repotted`, color: CARE_COLORS.repotted });
+      const event: CareEvent = { id: `repotted-${repotted}`, type: 'repotted', date: repotted };
+      events.push({ key: 'repotted', label: `${plant.name} · Repotted`, color: CARE_COLORS.repotted,
+        record: { plantId: plant.id, plantName: plant.name, event } });
     }
     if (dateValue === nextRepot) events.push({ key: 'next-repot', label: 'Next repot', color: '#D59A2A' });
     careEvents.filter(item => item.event.date === dateValue).forEach(item => events.push({
       key: `${item.plantId}-${item.event.id}`,
       label: `${item.plantName} · ${eventLabel(item.event)}`,
       color: CARE_COLORS[item.event.type],
+      record: item,
     }));
     return events;
   };
@@ -207,22 +218,18 @@ const Calendar: React.FC<PlantCalendarProps> = ({ plant, pottedOn, repotted, nex
               <div style={{ marginBottom: 6, color: '#53684B', fontSize: 12, fontWeight: 700 }}>Fertilizer</div>
               <Dropdown ariaLabel="Fertilizer type" value={fertilizerMethod} onChange={value => setFertilizerMethod(value as FertilizerMethod)} accent={plant.accent}
                 placeholder="Choose fertilizer"
-                options={[
-                  { value: 'Cucumber water', label: 'Cucumber water' },
-                  { value: 'Normal', label: 'Normal' },
-                  { value: 'Banana Water', label: 'Banana Water' },
-                ]} />
+                options={options.fertilizers.map(value => ({ value, label: value }))} />
             </div>}
             {(eventType === 'potted' || eventType === 'repotted') && <>
               <div>
                 <div style={{ marginBottom: 6, color: '#53684B', fontSize: 12, fontWeight: 700 }}>Pot material</div>
                 <Dropdown ariaLabel="Pot material" value={eventPotMaterial} onChange={setEventPotMaterial} accent={plant.accent}
-                  placeholder="Pot material" options={POT_MATERIAL_OPTIONS.map(value => ({ value, label: value }))} />
+                  placeholder="Pot material" options={options.potMaterials.map(value => ({ value, label: value }))} />
               </div>
               <div>
                 <div style={{ marginBottom: 6, color: '#53684B', fontSize: 12, fontWeight: 700 }}>Soil</div>
                 <Dropdown ariaLabel="Soil type" value={eventSubstrate} onChange={setEventSubstrate} accent={plant.accent}
-                  placeholder="Soil" options={SOIL_OPTIONS.map(value => ({ value, label: value }))} />
+                  placeholder="Soil" options={options.soils.map(value => ({ value, label: value }))} />
               </div>
             </>}
           </div>
@@ -241,8 +248,9 @@ const Calendar: React.FC<PlantCalendarProps> = ({ plant, pottedOn, repotted, nex
         position: 'fixed', inset: 0, zIndex: 1000, display: 'grid', placeItems: 'center',
         padding: 20, background: 'rgba(24,35,20,0.42)',
       }}>
-        <div role="dialog" aria-modal="true" aria-labelledby="calendar-day-events-title" style={{
-          width: 'min(100%, 420px)', maxHeight: 'min(80vh, 600px)', overflowY: 'auto',
+        {/* Keep long day-event lists scrollable with the app's shared scrollbar. */}
+        <StyledScrollArea role="dialog" ariaLabel="Events for this day" ariaModal ariaLabelledBy="calendar-day-events-title" style={{
+          width: 'min(100%, 420px)', maxHeight: 'min(80vh, 600px)',
           padding: 22, border: `1px solid ${plant.accent}55`, borderRadius: 20,
           background: '#FBFDF8', boxShadow: '0 18px 55px rgba(25,45,20,0.28)',
         }}>
@@ -254,11 +262,43 @@ const Calendar: React.FC<PlantCalendarProps> = ({ plant, pottedOn, repotted, nex
               background: `${event.color}14`, color: '#40563A', fontSize: 13,
             }}>
               <span aria-hidden="true" style={{ width: 10, height: 10, flexShrink: 0, borderRadius: 3, background: event.color }} />
-              {event.label}
+              <span style={{ flex: 1 }}>{event.label}</span>
+              {/* Show delete only for saved records; calculated next-repot reminders stay read-only. */}
+              {event.record && <Button onClick={() => setPendingDeleteEvent({ record: event.record!, label: event.label })}
+                icon="🗑️" color="#C04040" size="compact" ariaLabel={`Delete ${event.label}`} title="Delete event">
+                Delete
+              </Button>}
             </div>)}
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18 }}>
             <Button onClick={() => setShowEventsDate(null)} color={plant.accent}>Close</Button>
+          </div>
+        </StyledScrollArea>
+      </div>}
+
+      {/* Confirm event removal in the app so a stray click cannot erase a record. */}
+      {pendingDeleteEvent && <div role="presentation" onMouseDown={event => {
+        if (event.target === event.currentTarget) setPendingDeleteEvent(null);
+      }} style={{
+        position: 'fixed', inset: 0, zIndex: 1101, display: 'grid', placeItems: 'center',
+        padding: 20, background: 'rgba(24,35,20,0.52)',
+      }}>
+        <div role="alertdialog" aria-modal="true" aria-labelledby="calendar-delete-title"
+          aria-describedby="calendar-delete-message" onMouseDown={event => event.stopPropagation()} style={{
+            width: 'min(100%, 390px)', padding: 22, border: `1px solid ${plant.accent}55`, borderRadius: 20,
+            background: '#FBFDF8', boxShadow: '0 18px 55px rgba(25,45,20,0.28)',
+          }}>
+          <h2 id="calendar-delete-title" style={{ margin: '0 0 8px', color: '#2A4A1A', fontSize: 19 }}>Confirm deletion</h2>
+          <p id="calendar-delete-message" style={{ margin: 0, color: '#53684B', fontSize: 14, lineHeight: 1.5 }}>
+            Are you sure you want to delete this event?
+          </p>
+          <p style={{ margin: '8px 0 0', color: '#71856A', fontSize: 13 }}>{pendingDeleteEvent.label}</p>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
+            <Button onClick={() => setPendingDeleteEvent(null)} icon={Emoji.wiltedFlower} color="#C04040">Cancel</Button>
+            <Button onClick={() => {
+              onDeleteCareEvent(pendingDeleteEvent.record.plantId, pendingDeleteEvent.record.event);
+              setPendingDeleteEvent(null);
+            }} icon="🗑️" color="#C04040">Delete event</Button>
           </div>
         </div>
       </div>}

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import Button from './Button';
 import { Emoji } from '../Resources/Emoji';
-import { PLANTS, TABS } from '../Resources/Constants';
-import type { CalendarCareEvent, CareEvent, PlantSetup } from '../Resources/GardenData';
+import { TABS } from '../Resources/Constants';
+import type { CalendarCareEvent, CareEvent, GardenOptions, PlantProfileContentUpdate, PlantSetup } from '../Resources/GardenData';
 import type { Plant, TabId } from '../Resources/Types';
 import CareTab from '../Tabs/CareTab';
 import DiseasesTab from '../Tabs/DiseasesTab';
@@ -11,7 +12,15 @@ import TricksTab from '../Tabs/TricksTab';
 
 interface PlantDetailProps {
   plant: Plant;
+  plants: Plant[];
+  // Pass configured choices through to setup and calendar UI.
+  options: GardenOptions;
   onClose: () => void;
+  // Reuse the app's compressed-photo persistence flow from the profile menu.
+  onPhotoUpload: (file: File) => void;
+  // Persist user-authored guidance for either plant source across the profile tabs.
+  onSavePlantContent: (update: PlantProfileContentUpdate) => Promise<boolean>;
+  onDelete?: () => void;
 }
 
 const syncPottingEvents = (events: CalendarCareEvent[], plantId: string, plantName: string, setup: PlantSetup): CalendarCareEvent[] => {
@@ -29,12 +38,16 @@ const syncPottingEvents = (events: CalendarCareEvent[], plantId: string, plantNa
   return [...otherEvents, ...pottingEvents];
 };
 
-const PlantDetail: React.FC<PlantDetailProps> = ({ plant, onClose }) => {
+const PlantDetail: React.FC<PlantDetailProps> = ({ plant, plants, options, onClose, onPhotoUpload, onSavePlantContent, onDelete }) => {
   const [tab, setTab] = useState<TabId>(0);
-  const [setup, setSetup] = useState<PlantSetup>(() => loadPlantSetup(plant));
+  const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [setup, setSetup] = useState<PlantSetup>(() => loadPlantSetup(plant, options.soils));
   const [editingSetup, setEditingSetup] = useState(false);
   const [setupDraft, setSetupDraft] = useState<PlantSetup>(setup);
-  const [careEvents, setCareEvents] = useState<CalendarCareEvent[]>(() => PLANTS.flatMap(savedPlant => {
+  // Include custom plants so their calendar events can be logged from any profile.
+  const [careEvents, setCareEvents] = useState<CalendarCareEvent[]>(() => plants.flatMap(savedPlant => {
     try {
       const saved = localStorage.getItem(`garden-care-events-${savedPlant.id}`);
       const parsed: unknown = saved ? JSON.parse(saved) : [];
@@ -47,8 +60,18 @@ const PlantDetail: React.FC<PlantDetailProps> = ({ plant, onClose }) => {
     } catch { return []; }
   }));
 
+  // Close profile actions when the user clicks outside the menu.
+  useEffect(() => {
+    if (!actionsMenuOpen) return;
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      if (!actionsMenuRef.current?.contains(event.target as Node)) setActionsMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', closeOnOutsidePointer);
+    return () => document.removeEventListener('pointerdown', closeOnOutsidePointer);
+  }, [actionsMenuOpen]);
+
   const logCareEvent = async (plantId: string, event: CareEvent) => {
-    const selectedPlant = PLANTS.find(item => item.id === plantId);
+    const selectedPlant = plants.find(item => item.id === plantId);
     if (!selectedPlant) return;
     const updatedEvents = [
       ...careEvents.filter(item => !(item.plantId === plantId && item.event.type === event.type &&
@@ -62,7 +85,7 @@ const PlantDetail: React.FC<PlantDetailProps> = ({ plant, onClose }) => {
     } catch { /* Keep the event visible for this session if browser storage is unavailable. */ }
 
     if (event.type === 'potted' || event.type === 'repotted') {
-      const existingSetup = loadPlantSetup(selectedPlant);
+      const existingSetup = loadPlantSetup(selectedPlant, options.soils);
       const updatedSetup: PlantSetup = {
         ...existingSetup,
         potMaterial: event.potMaterial ?? existingSetup.potMaterial,
@@ -82,6 +105,45 @@ const PlantDetail: React.FC<PlantDetailProps> = ({ plant, onClose }) => {
     } catch (error) {
       console.error('Unable to save the care event to the garden data file.', error);
       window.alert('The event is visible for this session, but could not be saved to the garden data file.');
+    }
+  };
+
+  // Remove the matching care record and clear its setup date when applicable.
+  const deleteCareEvent = async (plantId: string, event: CareEvent) => {
+    const targetPlant = plants.find(item => item.id === plantId);
+    if (!targetPlant) return;
+    const updatedEvents = careEvents.filter(item => !(item.plantId === plantId && item.event.id === event.id && item.event.type === event.type));
+    setCareEvents(updatedEvents);
+    try {
+      localStorage.setItem(`garden-care-events-${plantId}`, JSON.stringify(
+        updatedEvents.filter(item => item.plantId === plantId).map(item => item.event),
+      ));
+    } catch { /* Keep the event removed for this session if browser storage is unavailable. */ }
+
+    let updatedSetup: PlantSetup | undefined;
+    if (event.type === 'potted' || event.type === 'repotted') {
+      const currentSetup = loadPlantSetup(targetPlant, options.soils);
+      updatedSetup = {
+        ...currentSetup,
+        ...(event.type === 'potted' && currentSetup.pottedOn === event.date ? { pottedOn: '' } : {}),
+        ...(event.type === 'repotted' && currentSetup.repotted === event.date ? { repotted: '' } : {}),
+      };
+      try { localStorage.setItem(`garden-setup-${plantId}`, JSON.stringify(updatedSetup)); }
+      catch { /* Keep the cleared setup date for this session if browser storage is unavailable. */ }
+      if (plantId === plant.id) {
+        setSetup(updatedSetup);
+        setSetupDraft(updatedSetup);
+      }
+    }
+
+    try {
+      await window.gardenDesktop?.deleteCareEvent({
+        id: plantId, name: targetPlant.name, source: targetPlant.isCustom ? 'custom' : 'built-in',
+        eventId: event.id, type: event.type, date: event.date, ...(updatedSetup ? { setup: updatedSetup } : {}),
+      });
+    } catch (error) {
+      console.error('Unable to delete the care event from the garden data file.', error);
+      window.alert('The event was removed from this session, but could not be deleted from the garden data file.');
     }
   };
 
@@ -118,14 +180,44 @@ const PlantDetail: React.FC<PlantDetailProps> = ({ plant, onClose }) => {
     }}>
       <div style={{
         background: `linear-gradient(135deg,${plant.color},${plant.accent}22)`,
-        padding: '16px 18px 12px', display: 'flex', alignItems: 'center', gap: 12,
+        padding: '16px 10px 12px 18px', display: 'flex', alignItems: 'center', gap: 12, position: 'relative',
         borderTopLeftRadius: 20, borderTopRightRadius: 20,
       }}>
         <div style={{ width: 54, height: 54, flexShrink: 0 }}>
-          <plant.icon accent={plant.accent} />
+          {/* Show an uploaded photo beside the name, falling back to the plant illustration. */}
+          {plant.photo
+            ? <img src={plant.photo} alt={`${plant.name} photo`} style={{ width: 54, height: 54, objectFit: 'cover', borderRadius: 12 }} />
+            : <plant.icon accent={plant.accent} />}
         </div>
         <div>
-          <div className="plant-name" style={{ fontSize: 18, color: '#1A3A0A' }}>{plant.name}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+            <div className="plant-name" style={{ fontSize: 18, color: '#1A3A0A', lineHeight: 1.2 }}>{plant.name}</div>
+            {/* Keep profile actions beside the plant name. */}
+            <div ref={actionsMenuRef} style={{ position: 'relative', flexShrink: 0, alignSelf: 'center' }}>
+              <Button onClick={() => setActionsMenuOpen(open => !open)} icon="⚙️" color="#2D6B28"
+                ariaLabel={`Options for ${plant.name}`} style={{ background: '#E7F3E2', border: '1px solid #2D6B28', color: '#24561F' }}>
+                Options
+              </Button>
+              {actionsMenuOpen && <div role="group" aria-label={`${plant.name} options`} style={{
+                position: 'absolute', top: 'calc(100% + 5px)', right: 0, zIndex: 30,
+                display: 'grid', gap: 7, minWidth: 190, padding: 10,
+                border: '1px solid #D5E2CB', borderRadius: 14, background: 'rgba(255,255,255,0.98)',
+                boxShadow: '0 8px 22px rgba(35,65,25,0.16)',
+              }}>
+                <Button onClick={() => { setActionsMenuOpen(false); photoInputRef.current?.click(); }} icon="📷" color="#4A8C3A">
+                  Add/change photo
+                </Button>
+                {onDelete && <Button onClick={() => { setActionsMenuOpen(false); onDelete(); }} icon="🗑️" color="#C04040">
+                  Delete plant
+                </Button>}
+              </div>}
+              <input ref={photoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={event => {
+                const file = event.currentTarget.files?.[0];
+                if (file) onPhotoUpload(file);
+                event.currentTarget.value = '';
+              }} />
+            </div>
+          </div>
           <div style={{ fontSize: 14, color: '#5A7A4A', fontStyle: 'italic', marginTop: 1 }}>{plant.latin}</div>
           <div style={{ display: 'flex', gap: 5, marginTop: 6, flexWrap: 'wrap' }}>
             <span style={{ background: 'rgba(255,255,255,0.7)', borderRadius: 20, padding: '2px 8px', fontSize: 14, color: '#4A6A3A' }}>
@@ -136,13 +228,14 @@ const PlantDetail: React.FC<PlantDetailProps> = ({ plant, onClose }) => {
             </span>
           </div>
         </div>
+        {/* Place the close control in the marked top-right corner. */}
         <button
           type="button"
           onClick={onClose}
           aria-label="Close plant profile"
           title="Close plant profile"
           style={{
-            marginLeft: 'auto', alignSelf: 'flex-start', flexShrink: 0,
+            position: 'absolute', top: 8, right: 10, flexShrink: 0,
             width: 34, height: 34, border: '1px solid rgba(80,80,80,0.2)',
             borderRadius: '50%', background: 'rgba(255,255,255,0.75)',
             color: '#4A5A3A', fontSize: 22, lineHeight: 1, cursor: 'pointer',
@@ -178,17 +271,20 @@ const PlantDetail: React.FC<PlantDetailProps> = ({ plant, onClose }) => {
             onSave={saveSetup}
             onCancel={() => setEditingSetup(false)}
             careEvents={careEvents}
-            plants={PLANTS}
+            plants={plants}
+            options={options}
             onLogCareEvent={logCareEvent}
+            onDeleteCareEvent={deleteCareEvent}
           />
         )}
-        {tab === 1 && <CareTab plant={plant} />}
-        {tab === 2 && <FertilizerTab plant={plant} />}
-        {tab === 3 && <TricksTab plant={plant} />}
-        {tab === 4 && <DiseasesTab plant={plant} />}
+        {tab === 1 && <CareTab plant={plant} onSavePlantContent={onSavePlantContent} />}
+        {tab === 2 && <FertilizerTab plant={plant} onSavePlantContent={onSavePlantContent} />}
+        {tab === 3 && <TricksTab plant={plant} onSavePlantContent={onSavePlantContent} />}
+        {tab === 4 && <DiseasesTab plant={plant} onSavePlantContent={onSavePlantContent} />}
       </div>
     </div>
   );
 };
 
 export default PlantDetail;
+

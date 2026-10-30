@@ -189,3 +189,14 @@ export const TradescantiaIcon: React.FC<{ accent: string }> = () => (
     ))}
   </svg>
 );
+
+// Give user-added plants a distinct icon without inventing species-specific artwork.
+export const CustomPlantIcon: React.FC<{ accent: string }> = ({ accent }) => (
+  <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" style={s}>
+    <path d="M40 52V25" stroke="#4A7C3A" strokeWidth="4" strokeLinecap="round" />
+    <path d="M39 38C24 38 20 29 21 20C32 19 41 25 39 38Z" fill={accent} />
+    <path d="M41 32C41 20 50 14 60 15C61 25 55 34 41 32Z" fill="#6AAE5A" />
+    <path d="M24 51H56L52 69H28L24 51Z" fill="#C4956A" />
+    <path d="M21 47H59V54H21V47Z" fill="#D4A574" />
+  </svg>
+);

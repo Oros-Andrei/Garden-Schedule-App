@@ -1,17 +1,18 @@
 import React from 'react';
 import { Emoji } from '../Resources/Emoji';
-import type { PlantSetup } from '../Resources/GardenData';
+import type { GardenOptions, PlantSetup } from '../Resources/GardenData';
 import type { CalendarCareEvent, CareEvent } from '../Resources/GardenData';
 import type { Plant } from '../Resources/Types';
-import { POT_MATERIAL_OPTIONS, POT_SIZE_OPTIONS, POT_TYPE_OPTIONS, SOIL_OPTIONS } from '../Resources/Constants';
+import { POT_SIZE_OPTIONS, POT_TYPE_OPTIONS, SOIL_OPTIONS } from '../Resources/Constants';
 import Button from '../Components/Button';
 import DatePicker from '../Components/DatePicker';
 import Dropdown from '../Components/Dropdown';
 import Calendar from '../Components/Calendar';
 import TextBox from '../Components/TextBox';
 
-export const loadPlantSetup = (plant: Plant): PlantSetup => {
-  const initialSoil = [...SOIL_OPTIONS].sort((a, b) => b.length - a.length)
+// Accept the live soil list so saved user additions remain valid after restart.
+export const loadPlantSetup = (plant: Plant, soils: string[] = SOIL_OPTIONS): PlantSetup => {
+  const initialSoil = [...soils].sort((a, b) => b.length - a.length)
     .find(option => plant.substrate.toLowerCase().includes(option.toLowerCase())) ?? 'General';
   const defaults: PlantSetup = {
     substrate: initialSoil, potType: 'Custom', potMaterial: plant.pot, potSize: plant.potSize, pottedOn: '', repotted: '',
@@ -21,7 +22,7 @@ export const loadPlantSetup = (plant: Plant): PlantSetup => {
     if (savedSetup) {
       const parsed = JSON.parse(savedSetup) as Partial<PlantSetup>;
       return {
-        substrate: typeof parsed.substrate === 'string' && SOIL_OPTIONS.includes(parsed.substrate) ? parsed.substrate : defaults.substrate,
+        substrate: typeof parsed.substrate === 'string' && soils.includes(parsed.substrate) ? parsed.substrate : defaults.substrate,
         potType: typeof parsed.potType === 'string' && POT_TYPE_OPTIONS.includes(parsed.potType) ? parsed.potType : defaults.potType,
         potMaterial: typeof parsed.potMaterial === 'string' ? parsed.potMaterial : defaults.potMaterial,
         potSize: typeof parsed.potSize === 'string' ? parsed.potSize : defaults.potSize,
@@ -32,7 +33,7 @@ export const loadPlantSetup = (plant: Plant): PlantSetup => {
     const savedSoil = localStorage.getItem(`garden-soil-${plant.id}`);
     if (savedSoil) {
       const parsed = JSON.parse(savedSoil) as { substrate?: string };
-      if (typeof parsed.substrate === 'string' && SOIL_OPTIONS.includes(parsed.substrate)) {
+      if (typeof parsed.substrate === 'string' && soils.includes(parsed.substrate)) {
         return { ...defaults, substrate: parsed.substrate };
       }
     }
@@ -88,10 +89,14 @@ interface SetupTabProps {
   onCancel: () => void;
   careEvents: CalendarCareEvent[];
   plants: Plant[];
+  // Reuse settings options in the editable setup fields and embedded calendar.
+  options: GardenOptions;
   onLogCareEvent: (plantId: string, event: CareEvent) => void;
+  // Keep setup-calendar record deletion on the same persisted care-event path.
+  onDeleteCareEvent: (plantId: string, event: CareEvent) => void;
 }
 
-const SetupTab: React.FC<SetupTabProps> = ({ plant, setup, setupDraft, editing, onEdit, onChange, onSave, onCancel, careEvents, plants, onLogCareEvent }) => {
+const SetupTab: React.FC<SetupTabProps> = ({ plant, setup, setupDraft, editing, onEdit, onChange, onSave, onCancel, careEvents, plants, options, onLogCareEvent, onDeleteCareEvent }) => {
   const calendarPotted = editing ? setupDraft.pottedOn : setup.pottedOn;
   const calendarRepotted = editing ? setupDraft.repotted : setup.repotted;
   const nextRepotDate = getNextRepotDate(calendarPotted, calendarRepotted);
@@ -104,13 +109,13 @@ const SetupTab: React.FC<SetupTabProps> = ({ plant, setup, setupDraft, editing, 
         <div className="setup-grid">
           <div style={labelStyle(plant.accent)}>{Emoji.seedling} Substrate</div>
           <Dropdown ariaLabel="Soil type" value={setup.substrate} disabled accent={plant.accent}
-            options={SOIL_OPTIONS.map(option => ({ value: option, label: option }))} />
+            options={options.soils.map(option => ({ value: option, label: option }))} />
           <div style={labelStyle(plant.accent)}>{Emoji.amphora} Pot type</div>
           <Dropdown ariaLabel="Pot type" value={setup.potType} disabled accent={plant.accent}
             options={POT_TYPE_OPTIONS.map(option => ({ value: option, label: option }))} />
           <div style={labelStyle(plant.accent)}>{Emoji.brick} Pot material</div>
           <Dropdown ariaLabel="Pot material" value={setup.potMaterial} disabled accent={plant.accent}
-            options={POT_MATERIAL_OPTIONS.map(option => ({ value: option, label: option }))} />
+            options={options.potMaterials.map(option => ({ value: option, label: option }))} />
           <div style={labelStyle(plant.accent)}>{Emoji.ruler} Pot size</div>
           <Dropdown ariaLabel="Pot size" value={setup.potSize} disabled accent={plant.accent} options={POT_SIZE_OPTIONS} />
           <div style={labelStyle(plant.accent)}>{Emoji.calendar} Potted in</div>
@@ -130,7 +135,7 @@ const SetupTab: React.FC<SetupTabProps> = ({ plant, setup, setupDraft, editing, 
           <div style={labelStyle(plant.accent)}>{Emoji.seedling} Substrate</div>
           <Dropdown ariaLabel="Soil type" value={setupDraft.substrate}
             onChange={substrate => onChange({ substrate })}
-            accent={plant.accent} options={SOIL_OPTIONS.map(option => ({ value: option, label: option }))} />
+            accent={plant.accent} options={options.soils.map(option => ({ value: option, label: option }))} />
           <div style={labelStyle(plant.accent)}>{Emoji.amphora} Pot type</div>
           <Dropdown ariaLabel="Pot type" value={setupDraft.potType}
             onChange={potType => onChange({ potType })}
@@ -138,7 +143,7 @@ const SetupTab: React.FC<SetupTabProps> = ({ plant, setup, setupDraft, editing, 
           <div style={labelStyle(plant.accent)}>{Emoji.brick} Pot material</div>
           <Dropdown ariaLabel="Pot material" value={setupDraft.potMaterial}
             onChange={potMaterial => onChange({ potMaterial })}
-            accent={plant.accent} options={POT_MATERIAL_OPTIONS.map(option => ({ value: option, label: option }))} />
+            accent={plant.accent} options={options.potMaterials.map(option => ({ value: option, label: option }))} />
           <div style={labelStyle(plant.accent)}>{Emoji.ruler} Pot size</div>
           <Dropdown ariaLabel="Pot size" value={setupDraft.potSize}
             onChange={potSize => onChange({ potSize })}
@@ -160,7 +165,8 @@ const SetupTab: React.FC<SetupTabProps> = ({ plant, setup, setupDraft, editing, 
     )}
     </div>
     <Calendar plant={plant} pottedOn={calendarPotted} repotted={calendarRepotted}
-      nextRepot={nextRepotDate ? toDateValue(nextRepotDate) : ''} careEvents={careEvents} plants={plants} onLogCareEvent={onLogCareEvent} />
+      nextRepot={nextRepotDate ? toDateValue(nextRepotDate) : ''} careEvents={careEvents} plants={plants} options={options}
+      onLogCareEvent={onLogCareEvent} onDeleteCareEvent={onDeleteCareEvent} />
   </div>
   );
 };

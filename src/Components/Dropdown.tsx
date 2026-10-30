@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import StyledScrollArea from './StyledScrollArea';
 
 export interface DropdownOption {
   value: string;
@@ -13,6 +14,10 @@ interface DropdownProps {
   placeholder?: string;
   accent?: string;
   disabled?: boolean;
+  // Allow form fields to align with the full width of their modal or panel.
+  fullWidth?: boolean;
+  // Keep icon-only selectors compact when they sit beside a text field.
+  compact?: boolean;
 }
 
 const Dropdown: React.FC<DropdownProps> = ({
@@ -23,6 +28,8 @@ const Dropdown: React.FC<DropdownProps> = ({
   placeholder,
   accent = '#5A7A4A',
   disabled = false,
+  fullWidth = false,
+  compact = false,
 }) => {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -48,7 +55,7 @@ const Dropdown: React.FC<DropdownProps> = ({
   const selectedOption = options.find(option => option.value === value);
 
   return (
-    <div ref={rootRef} style={{ position: 'relative', flex: '0 0 auto', width: 'max-content', maxWidth: '100%' }}>
+    <div ref={rootRef} style={{ position: 'relative', flex: '0 0 auto', width: compact ? 56 : fullWidth ? '100%' : 'max-content', maxWidth: '100%' }}>
       <button
         type="button"
         aria-label={ariaLabel}
@@ -65,8 +72,9 @@ const Dropdown: React.FC<DropdownProps> = ({
           }
         }}
         style={{
-          width: '100%', minHeight: 36, padding: '8px 11px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+          boxSizing: 'border-box', width: '100%', height: compact ? 54 : undefined, minHeight: compact ? 54 : 36,
+          padding: compact ? '6px 5px' : '8px 11px',
+          display: 'flex', alignItems: 'center', justifyContent: compact ? 'center' : 'space-between', gap: compact ? 3 : 10,
           border: `1px solid ${open ? accent : '#C8D8B8'}`, borderRadius: 12,
           background: 'white', color: selectedOption ? '#3A5A2A' : '#8A9A80',
           font: "14px 'Quicksand', 'Trebuchet MS', sans-serif", textAlign: 'left', cursor: disabled ? 'default' : 'pointer',
@@ -74,34 +82,37 @@ const Dropdown: React.FC<DropdownProps> = ({
           opacity: 1,
         }}
       >
-        <span style={{ display: 'grid', minWidth: 0, whiteSpace: 'nowrap' }}>
+        <span style={{ display: 'grid', minWidth: 0, whiteSpace: 'nowrap', fontSize: compact ? 18 : undefined }}>
           {selectedOption?.label ?? placeholder ?? 'Choose an option'}
         </span>
         {!disabled && <span aria-hidden="true" style={{ color: accent, fontSize: 10 }}>{open ? '▴' : '▾'}</span>}
       </button>
 
       {open && (
-        <div
-          role="listbox"
-          aria-label={ariaLabel}
-          style={{
-            position: 'absolute', zIndex: 20, top: 'calc(100% + 5px)', left: 0, right: 0,
-            maxHeight: 150, overflowY: 'auto', padding: 5,
-            width: 'max-content', minWidth: '100%', maxWidth: 'min(320px, calc(100vw - 40px))',
-            border: '1px solid #D5E2CB', borderRadius: 12,
-            background: 'rgba(255,255,255,0.98)',
-            boxShadow: '0 8px 22px rgba(35,65,25,0.16)',
-          }}
-        >
-          {options.map(option => (
-            <button
-              type="button" role="option" aria-selected={value === option.value}
-              key={option.value}
-              onClick={() => { onChange(option.value); setOpen(false); }}
-              style={optionStyle(value === option.value, accent)}
-            >{option.label}</button>
-          ))}
-        </div>
+        <>
+          {/* Keep option list scrolling in the garden's visual style. */}
+          <StyledScrollArea
+            role="listbox"
+            ariaLabel={ariaLabel}
+            style={{
+              position: 'absolute', zIndex: 20, top: 'calc(100% + 5px)', left: 0, right: 0,
+              maxHeight: 150, padding: 5,
+              width: 'max-content', minWidth: '100%', maxWidth: 'min(320px, calc(100vw - 40px))',
+              border: '1px solid #D5E2CB', borderRadius: 12,
+              background: 'rgba(255,255,255,0.98)',
+              boxShadow: '0 8px 22px rgba(35,65,25,0.16)',
+            }}
+          >
+            {options.map(option => (
+              <button
+                type="button" role="option" aria-selected={value === option.value}
+                key={option.value}
+                onClick={() => { onChange(option.value); setOpen(false); }}
+                style={optionStyle(value === option.value, accent)}
+              >{option.label}</button>
+            ))}
+          </StyledScrollArea>
+        </>
       )}
     </div>
   );

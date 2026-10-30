@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { PLANTS } from '../Resources/Constants';
-import type { CalendarCareEvent, CareEvent } from '../Resources/GardenData';
+import type { CalendarCareEvent, CareEvent, GardenOptions } from '../Resources/GardenData';
 import type { Plant } from '../Resources/Types';
 import { loadPlantSetup } from '../Tabs/SetupTab';
 import Calendar from './Calendar';
@@ -11,7 +10,7 @@ const isCareEvent = (value: unknown): value is CareEvent => Boolean(
   typeof (value as CareEvent).date === 'string' && typeof (value as CareEvent).id === 'string',
 );
 
-const loadGardenEvents = (): CalendarCareEvent[] => PLANTS.flatMap(plant => {
+const loadGardenEvents = (plants: Plant[], options: GardenOptions): CalendarCareEvent[] => plants.flatMap(plant => {
   let events: CalendarCareEvent[] = [];
   try {
     const saved = localStorage.getItem(`garden-care-events-${plant.id}`);
@@ -21,7 +20,7 @@ const loadGardenEvents = (): CalendarCareEvent[] => PLANTS.flatMap(plant => {
     }
   } catch { /* Continue with any valid setup dates if stored events cannot be read. */ }
 
-  const setup = loadPlantSetup(plant);
+  const setup = loadPlantSetup(plant, options.soils);
   const setupEvents: CalendarCareEvent[] = [];
   if (setup.pottedOn) setupEvents.push({
     plantId: plant.id, plantName: plant.name,
@@ -36,12 +35,14 @@ const loadGardenEvents = (): CalendarCareEvent[] => PLANTS.flatMap(plant => {
   return [...events.filter(item => !replacedTypes.has(item.event.type)), ...setupEvents];
 });
 
-const GardenCalendar: React.FC = () => {
-  const [careEvents, setCareEvents] = useState<CalendarCareEvent[]>(loadGardenEvents);
-  const calendarPlant: Plant = PLANTS[0];
+// Accept live settings so shared-calendar events use the configured choices.
+const GardenCalendar: React.FC<{ plants: Plant[]; options: GardenOptions }> = ({ plants, options }) => {
+  // Derive events from the same dynamic plant list used by the category view.
+  const [careEvents, setCareEvents] = useState<CalendarCareEvent[]>(() => loadGardenEvents(plants, options));
+  const calendarPlant: Plant = plants[0];
 
   const logCareEvent = async (plantId: string, event: CareEvent) => {
-    const targetPlant = PLANTS.find(plant => plant.id === plantId);
+    const targetPlant = plants.find(plant => plant.id === plantId);
     if (!targetPlant) return;
     const replacesPlantType = event.type === 'potted' || event.type === 'repotted';
     const updatedEvents = [
@@ -57,7 +58,7 @@ const GardenCalendar: React.FC = () => {
     } catch { /* Keep the event visible for this session if browser storage is unavailable. */ }
 
     if (replacesPlantType) {
-      const setup = loadPlantSetup(targetPlant);
+      const setup = loadPlantSetup(targetPlant, options.soils);
       const updatedSetup = {
         ...setup,
         potMaterial: event.potMaterial ?? setup.potMaterial,
@@ -76,9 +77,44 @@ const GardenCalendar: React.FC = () => {
     }
   };
 
+  // Remove a saved record from the shared calendar and keep setup dates in sync.
+  const deleteCareEvent = async (plantId: string, event: CareEvent) => {
+    const targetPlant = plants.find(plant => plant.id === plantId);
+    if (!targetPlant) return;
+    const updatedEvents = careEvents.filter(item => !(item.plantId === plantId && item.event.id === event.id && item.event.type === event.type));
+    setCareEvents(updatedEvents);
+    try {
+      localStorage.setItem(`garden-care-events-${plantId}`, JSON.stringify(
+        updatedEvents.filter(item => item.plantId === plantId).map(item => item.event),
+      ));
+    } catch { /* Keep the event removed for this session if browser storage is unavailable. */ }
+
+    let updatedSetup: ReturnType<typeof loadPlantSetup> | undefined;
+    if (event.type === 'potted' || event.type === 'repotted') {
+      const currentSetup = loadPlantSetup(targetPlant, options.soils);
+      updatedSetup = {
+        ...currentSetup,
+        ...(event.type === 'potted' && currentSetup.pottedOn === event.date ? { pottedOn: '' } : {}),
+        ...(event.type === 'repotted' && currentSetup.repotted === event.date ? { repotted: '' } : {}),
+      };
+      try { localStorage.setItem(`garden-setup-${plantId}`, JSON.stringify(updatedSetup)); }
+      catch { /* Keep the cleared setup date for this session if browser storage is unavailable. */ }
+    }
+
+    try {
+      await window.gardenDesktop?.deleteCareEvent({
+        id: plantId, name: targetPlant.name, source: targetPlant.isCustom ? 'custom' : 'built-in',
+        eventId: event.id, type: event.type, date: event.date, ...(updatedSetup ? { setup: updatedSetup } : {}),
+      });
+    } catch (error) {
+      console.error('Unable to delete the care event from the garden data file.', error);
+      window.alert('The event was removed from this session, but could not be deleted from the garden data file.');
+    }
+  };
+
   return <div style={{ width: '100%', maxWidth: 960, margin: '0 auto' }}>
     <Calendar plant={calendarPlant} pottedOn="" repotted="" nextRepot=""
-      careEvents={careEvents} plants={PLANTS} onLogCareEvent={logCareEvent} />
+      careEvents={careEvents} plants={plants} options={options} onLogCareEvent={logCareEvent} onDeleteCareEvent={deleteCareEvent} />
   </div>;
 };
 

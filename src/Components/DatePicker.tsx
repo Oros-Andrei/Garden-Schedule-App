@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { WEEKDAYS } from '../Resources/Constants';
+import StyledScrollArea from './StyledScrollArea';
 
 interface DatePickerProps {
   value: string;
@@ -72,8 +73,8 @@ const DatePicker: React.FC<DatePickerProps> = ({
 
   useEffect(() => {
     if (!selectingMonthYear || !yearListRef.current || !selectedYearRef.current) return;
-    yearListRef.current.scrollTop = selectedYearRef.current.offsetTop - yearListRef.current.offsetTop
-      - (yearListRef.current.clientHeight - selectedYearRef.current.offsetHeight) / 2;
+    // Center the chosen year within the custom scroll viewport.
+    selectedYearRef.current.scrollIntoView({ block: 'center', inline: 'nearest' });
   }, [selectingMonthYear, visibleMonth]);
 
   const firstOffset = (visibleMonth.getDay() + 6) % 7;
@@ -196,10 +197,13 @@ const DatePicker: React.FC<DatePickerProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
                 <span style={{ font: "700 14px 'Quicksand', 'Trebuchet MS', sans-serif", color: '#3A5A2A' }}>Choose month &amp; year</span>
               </div>
-              <div
+              {/* Keep the long year choices within the date picker and theme its scrollbar. */}
+              <StyledScrollArea
                 ref={yearListRef}
-                aria-label="Years"
-                style={{ maxHeight: 108, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, marginBottom: 10, padding: '2px 3px' }}
+                role="region"
+                ariaLabel="Years"
+                style={{ maxHeight: 108, marginBottom: 10, padding: '2px 3px' }}
+                viewportStyle={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4 }}
               >
                 {years.map(year => {
                   const selected = visibleMonth.getFullYear() === year;
@@ -214,7 +218,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
                     >{year}</button>
                   );
                 })}
-              </div>
+              </StyledScrollArea>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4 }}>
                 {months.map(month => {
                   const selected = visibleMonth.getMonth() === month.value;

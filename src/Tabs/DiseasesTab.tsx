@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { SEVERITY_CONFIG } from '../Resources/Constants';
 import { Emoji } from '../Resources/Emoji';
+import type { PlantProfileContentUpdate } from '../Resources/GardenData';
 import type { Disease, Plant } from '../Resources/Types';
+import Button from '../Components/Button';
+import CustomPlantInfoEditor from '../Components/CustomPlantInfoEditor';
 
 const DiseaseCard: React.FC<{ disease: Disease; accent: string }> = ({ disease, accent }) => {
   const [open, setOpen] = useState(false);
@@ -40,11 +43,25 @@ const DiseaseCard: React.FC<{ disease: Disease; accent: string }> = ({ disease, 
   );
 };
 
-const DiseasesTab: React.FC<{ plant: Plant }> = ({ plant }) => (
+const DiseasesTab: React.FC<{ plant: Plant; onSavePlantContent: (update: PlantProfileContentUpdate) => Promise<boolean> }> = ({ plant, onSavePlantContent }) => {
+  const [editing, setEditing] = useState(false);
+  // Use the shared editor for built-in profiles without changing their catalog defaults.
+  if (editing) return <CustomPlantInfoEditor plant={plant} section="diseases" onSave={onSavePlantContent} onCancel={() => setEditing(false)} />;
+  if (plant.isCustom && !plant.customInfo?.diseases) return (
+    <div role="status" style={{ padding: 18, borderRadius: 12, background: '#F5F9F0', color: '#5A7A4A', fontSize: 14, textAlign: 'center' }}>
+      <div style={{ marginBottom: 10 }}>Disease information has not been added for this plant yet.</div>
+      <Button onClick={() => setEditing(true)} icon={Emoji.plus} color="#4A8C3A">Add information</Button>
+    </div>
+  );
+  return (
   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <Button onClick={() => setEditing(true)} icon={Emoji.edit} color="#4A8C3A">Edit information</Button>
+    </div>
     <div style={{ fontSize: 14, color: '#7A9A6A', marginBottom: 2 }}>Tap a symptom to see the cause and fix.</div>
     {plant.diseases.map((disease, index) => <DiseaseCard key={index} disease={disease} accent={plant.accent} />)}
   </div>
-);
+  );
+};
 
 export default DiseasesTab;

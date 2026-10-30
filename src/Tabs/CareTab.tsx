@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Emoji } from '../Resources/Emoji';
+import type { PlantProfileContentUpdate } from '../Resources/GardenData';
 import type { Plant } from '../Resources/Types';
+import Button from '../Components/Button';
+import CustomPlantInfoEditor from '../Components/CustomPlantInfoEditor';
 
 const WaterDroplet: React.FC<{ ml: number; maxMl?: number; color: string; accent: string }> = ({ ml, maxMl = 1000, color, accent }) => {
   const pct = Math.min(ml / maxMl, 1);
@@ -25,8 +28,21 @@ const WaterDroplet: React.FC<{ ml: number; maxMl?: number; color: string; accent
   );
 };
 
-const CareTab: React.FC<{ plant: Plant }> = ({ plant }) => (
+const CareTab: React.FC<{ plant: Plant; onSavePlantContent: (update: PlantProfileContentUpdate) => Promise<boolean> }> = ({ plant, onSavePlantContent }) => {
+  const [editing, setEditing] = useState(false);
+  // Use the same form to edit built-in guidance while retaining its starting content.
+  if (editing) return <CustomPlantInfoEditor plant={plant} section="care" onSave={onSavePlantContent} onCancel={() => setEditing(false)} />;
+  if (plant.isCustom && !plant.customInfo?.care) return (
+    <div role="status" style={{ padding: 18, borderRadius: 12, background: '#F5F9F0', color: '#5A7A4A', fontSize: 14, textAlign: 'center' }}>
+      <div style={{ marginBottom: 10 }}>Care information has not been added for this plant yet.</div>
+      <Button onClick={() => setEditing(true)} icon={Emoji.plus} color="#4A8C3A">Add information</Button>
+    </div>
+  );
+  return (
   <div>
+    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+      <Button onClick={() => setEditing(true)} icon={Emoji.edit} color="#4A8C3A">Edit information</Button>
+    </div>
     {plant.details.warning && (
       <div style={{ background: '#FFF8E8', border: '1.5px solid #FFD080', borderRadius: 12, padding: '9px 13px', marginBottom: 13, fontSize: 14, color: '#7A5010' }}>
         {Emoji.warning} {plant.details.warning}
@@ -46,10 +62,10 @@ const CareTab: React.FC<{ plant: Plant }> = ({ plant }) => (
           <div style={{ fontSize: 14, color: '#2A2A6A', textAlign: 'center', lineHeight: 1.4 }}>{plant.details.watering.winter}</div>
         </div>
       </div>
-      <div style={{ background: '#F0F7E8', border: '1px solid #C8E0B0', borderRadius: 10, padding: '7px 12px', marginTop: 8, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+          {!plant.isCustom && <div style={{ background: '#F0F7E8', border: '1px solid #C8E0B0', borderRadius: 10, padding: '7px 12px', marginTop: 8, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
         <span style={{ fontSize: 14, flexShrink: 0 }}>{Emoji.lightBulb}</span>
         <span style={{ fontSize: 14, color: '#3A6A2A', lineHeight: 1.5 }}>Amounts are per session based on pot size. The most reliable method: <strong>water until it drains from the bottom</strong>, then don't water again until the soil is dry.</span>
-      </div>
+          </div>}
     </div>
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9, marginBottom: 13 }}>
       <div style={{ background: '#FFF9F0', borderRadius: 10, padding: '9px 11px' }}>
@@ -70,6 +86,7 @@ const CareTab: React.FC<{ plant: Plant }> = ({ plant }) => (
       ))}
     </div>
   </div>
-);
+  );
+};
 
 export default CareTab;
