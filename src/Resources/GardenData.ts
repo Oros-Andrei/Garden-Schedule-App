@@ -5,11 +5,13 @@ export interface PlantSetup {
   potType: string;
   potMaterial: string;
   potSize: string;
+  room: string;
   pottedOn: string;
   repotted: string;
 }
 
-export type CareEventType = 'watering' | 'fertilizing' | 'potted' | 'repotted';
+// Location is recorded as a dated calendar event, separate from plant setup.
+export type CareEventType = 'watering' | 'fertilizing' | 'potted' | 'repotted' | 'location';
 
 // Fertilizer methods can include user-added names configured in Settings.
 export type FertilizerMethod = string;
@@ -21,6 +23,8 @@ export interface CareEvent {
   fertilizerMethod?: FertilizerMethod;
   potMaterial?: string;
   substrate?: string;
+  // Keep a room selection on its dated event so calendar history stays explicit.
+  room?: string;
 }
 
 export interface CalendarCareEvent {
@@ -57,6 +61,8 @@ export type PlantProfileContentUpdate =
 export interface SavedCategory {
   id: string;
   name: string;
+  // Preserve a user-selected category color in browser data and JSON backups.
+  color?: string;
 }
 
 // These additions flow into setup and calendar pickers and persist in garden data.
@@ -64,6 +70,7 @@ export interface GardenOptions {
   fertilizers: string[];
   potMaterials: string[];
   soils: string[];
+  rooms: string[];
 }
 
 export interface GardenData {

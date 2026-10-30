@@ -40,9 +40,6 @@ const CareTab: React.FC<{ plant: Plant; onSavePlantContent: (update: PlantProfil
   );
   return (
   <div>
-    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
-      <Button onClick={() => setEditing(true)} icon={Emoji.edit} color="#4A8C3A">Edit information</Button>
-    </div>
     {plant.details.warning && (
       <div style={{ background: '#FFF8E8', border: '1.5px solid #FFD080', borderRadius: 12, padding: '9px 13px', marginBottom: 13, fontSize: 14, color: '#7A5010' }}>
         {Emoji.warning} {plant.details.warning}
@@ -84,6 +81,10 @@ const CareTab: React.FC<{ plant: Plant; onSavePlantContent: (update: PlantProfil
           <span style={{ color: plant.accent, flexShrink: 0 }}>→</span><span>{tip}</span>
         </div>
       ))}
+    </div>
+    {/* Keep the edit action at the bottom-right after all care guidance. */}
+    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+      <Button onClick={() => setEditing(true)} icon={Emoji.edit} color="#4A8C3A">Edit information</Button>
     </div>
   </div>
   );

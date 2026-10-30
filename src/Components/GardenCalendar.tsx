@@ -6,7 +6,8 @@ import Calendar from './Calendar';
 
 const isCareEvent = (value: unknown): value is CareEvent => Boolean(
   value && typeof value === 'object' &&
-  ['watering', 'fertilizing', 'potted', 'repotted'].includes((value as CareEvent).type) &&
+  // Keep Location records when reading the shared calendar's saved event list.
+  ['watering', 'fertilizing', 'potted', 'repotted', 'location'].includes((value as CareEvent).type) &&
   typeof (value as CareEvent).date === 'string' && typeof (value as CareEvent).id === 'string',
 );
 

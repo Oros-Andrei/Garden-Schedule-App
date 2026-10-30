@@ -54,7 +54,8 @@ const PlantDetail: React.FC<PlantDetailProps> = ({ plant, plants, options, onClo
       if (!Array.isArray(parsed)) return [];
       return parsed.filter((event): event is CareEvent =>
         event && typeof event === 'object' &&
-        ['watering', 'fertilizing', 'potted', 'repotted'].includes((event as CareEvent).type) &&
+        // Keep Location records visible alongside the plant's other care events.
+        ['watering', 'fertilizing', 'potted', 'repotted', 'location'].includes((event as CareEvent).type) &&
         typeof (event as CareEvent).date === 'string' && typeof (event as CareEvent).id === 'string')
         .map(event => ({ plantId: savedPlant.id, plantName: savedPlant.name, event }));
     } catch { return []; }
@@ -182,7 +183,7 @@ const PlantDetail: React.FC<PlantDetailProps> = ({ plant, plants, options, onClo
         background: `linear-gradient(135deg,${plant.color},${plant.accent}22)`,
         padding: '16px 10px 12px 18px', display: 'flex', alignItems: 'center', gap: 12, position: 'relative',
         borderTopLeftRadius: 20, borderTopRightRadius: 20,
-      }}>
+      }} className="plant-profile-header">
         <div style={{ width: 54, height: 54, flexShrink: 0 }}>
           {/* Show an uploaded photo beside the name, falling back to the plant illustration. */}
           {plant.photo
@@ -192,8 +193,8 @@ const PlantDetail: React.FC<PlantDetailProps> = ({ plant, plants, options, onClo
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
             <div className="plant-name" style={{ fontSize: 18, color: '#1A3A0A', lineHeight: 1.2 }}>{plant.name}</div>
-            {/* Keep profile actions beside the plant name. */}
-            <div ref={actionsMenuRef} style={{ position: 'relative', flexShrink: 0, alignSelf: 'center' }}>
+            {/* Anchor Android profile actions below the close control. */}
+            <div className="plant-profile-actions" ref={actionsMenuRef} style={{ position: 'relative', flexShrink: 0, alignSelf: 'center' }}>
               <Button onClick={() => setActionsMenuOpen(open => !open)} icon="⚙️" color="#2D6B28"
                 ariaLabel={`Options for ${plant.name}`} style={{ background: '#E7F3E2', border: '1px solid #2D6B28', color: '#24561F' }}>
                 Options
@@ -228,8 +229,9 @@ const PlantDetail: React.FC<PlantDetailProps> = ({ plant, plants, options, onClo
             </span>
           </div>
         </div>
-        {/* Place the close control in the marked top-right corner. */}
+        {/* Keep the profile close control compact on Android phones. */}
         <button
+          className="plant-profile-close"
           type="button"
           onClick={onClose}
           aria-label="Close plant profile"
@@ -243,17 +245,18 @@ const PlantDetail: React.FC<PlantDetailProps> = ({ plant, plants, options, onClo
         >{Emoji.close}</button>
       </div>
 
-      <div style={{ display: 'flex', borderBottom: '1.5px solid #E8F0E0' }}>
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{
+      <div className="plant-profile-tabs" style={{ display: 'flex', borderBottom: '1.5px solid #E8F0E0' }}>
+        {TABS.map(t => {
+          const [icon, ...label] = t.label.split(' ');
+          return <button className="plant-profile-tab" key={t.id} onClick={() => setTab(t.id)} style={{
             flex: 1, padding: '10px 4px', border: 'none', cursor: 'pointer',
             background: tab === t.id ? 'rgba(255,255,255,1)' : 'rgba(240,247,234,0.6)',
             borderBottom: tab === t.id ? `2.5px solid ${plant.accent}` : '2.5px solid transparent',
             fontSize: 14, fontWeight: tab === t.id ? 700 : 400,
             color: tab === t.id ? plant.accent : '#7A9A6A',
             transition: 'all 0.15s',
-          }}>{t.label}</button>
-        ))}
+          }}><span className="plant-profile-tab-icon" aria-hidden="true">{icon}</span><span className="plant-profile-tab-label">{label.join(' ')}</span></button>;
+        })}
       </div>
 
       <div style={{ padding: '16px 18px 18px' }}>

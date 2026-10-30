@@ -7,6 +7,11 @@ build/
 coverage/
 release*/
 /Garden Storage/
+/android/.gradle/
+/android/local.properties
+/android/build/
+/android/app/build/
+/android/app/.cxx/
 
 # Environment files and secrets
 .env
