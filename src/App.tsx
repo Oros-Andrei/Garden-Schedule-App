@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
@@ -141,6 +141,26 @@ const customCategoryPalette = [
 const optionDefaults: GardenOptions = {
   fertilizers: FERTILIZER_OPTIONS, potMaterials: POT_MATERIAL_OPTIONS, soils: SOIL_OPTIONS, rooms: [],
 };
+
+// Derive the home-card status from the latest saved watering record.
+const getWateringAgeLabel = (plantId: string): string => {
+  try {
+    const saved: unknown = JSON.parse(localStorage.getItem(`garden-care-events-${plantId}`) ?? '[]');
+    if (!Array.isArray(saved)) return 'No watering logged';
+    const latestDate = saved.reduce<string | null>((latest, event) => {
+      if (!event || event.type !== 'watering' || typeof event.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(event.date)) return latest;
+      return !latest || event.date > latest ? event.date : latest;
+    }, null);
+    if (!latestDate) return 'No watering logged';
+    const [year, month, day] = latestDate.split('-').map(Number);
+    const latest = new Date(year, month - 1, day);
+    if (latest.getFullYear() !== year || latest.getMonth() !== month - 1 || latest.getDate() !== day) return 'No watering logged';
+    const today = new Date();
+    const elapsed = Math.max(0, Math.floor((Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) - Date.UTC(year, month - 1, day)) / 86400000));
+    return elapsed === 0 ? 'Watered today' : `Watered ${elapsed} day${elapsed === 1 ? '' : 's'} ago`;
+  } catch { return 'No watering logged'; }
+};
+
 const optionLabels: Record<keyof GardenOptions, string> = {
   fertilizers: 'Fertilizer types', potMaterials: 'Pot materials', soils: 'Soil types', rooms: 'Rooms',
 };
@@ -165,6 +185,7 @@ const App: React.FC = () => {
   const [builtInProfileOverrides, setBuiltInProfileOverrides] = useState<SavedPlant[]>(loadBuiltInProfileOverrides);
   const [plantPhotos, setPlantPhotos] = useState<Record<string, string>>(() => window.gardenInitialPhotos ?? {});
   const [photoMessage, setPhotoMessage] = useState<string | null>(null);
+  const [careEventRevision, setCareEventRevision] = useState(0);
   const [customOptions, setCustomOptions] = useState<GardenOptions>(loadCustomOptions);
   const [categoryColorDraft, setCategoryColorDraft] = useState(customCategoryPalette[0]);
   const [deletedPlantIds, setDeletedPlantIds] = useState<string[]>(() => loadDeletedIds('garden-deleted-plant-ids'));
@@ -185,6 +206,13 @@ const App: React.FC = () => {
   const [plantCategoryDraft, setPlantCategoryDraft] = useState('');
   // Start the home view compact with every category collapsed.
   const [openCats, setOpenCats] = useState<Record<string, boolean>>({});
+
+  // Refresh home-card watering ages after a care record changes anywhere in the app.
+  useEffect(() => {
+    const refreshCareEvents = () => setCareEventRevision(revision => revision + 1);
+    window.addEventListener('garden-care-events-updated', refreshCareEvents);
+    return () => window.removeEventListener('garden-care-events-updated', refreshCareEvents);
+  }, []);
 
   // Load browser photos from IndexedDB; desktop photos arrive with the garden data file.
   useEffect(() => {
@@ -251,6 +279,10 @@ const App: React.FC = () => {
     rooms: Array.from(new Set([...optionDefaults.rooms, ...customOptions.rooms])),
   };
   const selectedPlant = plants.find(p => p.id === selectedId) ?? null;
+  const wateringAgeLabels = useMemo(
+    () => new Map(plants.map(plant => [plant.id, getWateringAgeLabel(plant.id)])),
+    [plants, careEventRevision],
+  );
 
   const handleSelect = (id: string) => {
     // Opening a plant always returns Android to its Home profile.
@@ -811,6 +843,9 @@ const App: React.FC = () => {
                           <div style={{ fontSize: 14, fontWeight: 700, textAlign: 'center', lineHeight: 1.3,
                             color: selectedId === p.id ? p.accent : '#3A5A2A' }}>
                             {p.name}
+                          </div>
+                          <div style={{ fontSize: 11, color: '#71856A', textAlign: 'center', lineHeight: 1.2 }}>
+                            {wateringAgeLabels.get(p.id) ?? 'No watering logged'}
                           </div>
                         </button>
                         {/* Use a single-color camera glyph so the photo action stays centered and clear. */}

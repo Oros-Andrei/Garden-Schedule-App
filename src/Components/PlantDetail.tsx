@@ -84,6 +84,8 @@ const PlantDetail: React.FC<PlantDetailProps> = ({ plant, plants, options, onClo
       const plantEvents = updatedEvents.filter(item => item.plantId === plantId).map(item => item.event);
       localStorage.setItem(`garden-care-events-${plantId}`, JSON.stringify(plantEvents));
     } catch { /* Keep the event visible for this session if browser storage is unavailable. */ }
+    // Keep the home-card watering age synchronized with profile calendar edits.
+    window.dispatchEvent(new Event('garden-care-events-updated'));
 
     if (event.type === 'potted' || event.type === 'repotted') {
       const existingSetup = loadPlantSetup(selectedPlant, options.soils);
@@ -120,6 +122,8 @@ const PlantDetail: React.FC<PlantDetailProps> = ({ plant, plants, options, onClo
         updatedEvents.filter(item => item.plantId === plantId).map(item => item.event),
       ));
     } catch { /* Keep the event removed for this session if browser storage is unavailable. */ }
+    // Recalculate the home-card watering age after a profile record is removed.
+    window.dispatchEvent(new Event('garden-care-events-updated'));
 
     let updatedSetup: PlantSetup | undefined;
     if (event.type === 'potted' || event.type === 'repotted') {

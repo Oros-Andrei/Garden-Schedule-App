@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { WEEKDAYS } from '../Resources/Constants';
 import StyledScrollArea from './StyledScrollArea';
 
@@ -49,15 +50,18 @@ const DatePicker: React.FC<DatePickerProps> = ({
   });
   const [draftDate, setDraftDate] = useState(() => value || toDateValue(new Date()));
   const rootRef = useRef<HTMLDivElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
   const yearListRef = useRef<HTMLDivElement>(null);
   const selectedYearRef = useRef<HTMLButtonElement>(null);
   const selectedDate = parseDate(value);
+  const isAndroid = Capacitor.getPlatform() === 'android';
+  const [androidPopupPosition, setAndroidPopupPosition] = useState<{ top: number; left: number; maxHeight: number } | null>(null);
 
   useEffect(() => {
     if (!open) return;
 
     const closeOnOutsideClick = (event: MouseEvent) => {
-      if (event.target instanceof Node && !rootRef.current?.contains(event.target)) setOpen(false);
+      if (event.target instanceof Node && !rootRef.current?.contains(event.target) && !popupRef.current?.contains(event.target)) setOpen(false);
     };
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false);
@@ -70,6 +74,40 @@ const DatePicker: React.FC<DatePickerProps> = ({
       document.removeEventListener('keydown', closeOnEscape);
     };
   }, [open]);
+
+  useLayoutEffect(() => {
+    if (!open || !isAndroid) return;
+    const positionPopup = () => {
+      const trigger = rootRef.current;
+      const popup = popupRef.current;
+      if (!trigger || !popup) return;
+      const triggerBounds = trigger.getBoundingClientRect();
+      const scrollViewport = trigger.closest<HTMLElement>('.garden-scroll-viewport')?.getBoundingClientRect();
+      const visibleTop = Math.max(8, scrollViewport?.top ?? 0);
+      const visibleBottom = Math.min(window.innerHeight - 8, scrollViewport?.bottom ?? window.innerHeight);
+      const popupHeight = Math.min(popup.scrollHeight, visibleBottom - visibleTop - 8);
+      const belowSpace = visibleBottom - triggerBounds.bottom - 5;
+      const aboveSpace = triggerBounds.top - visibleTop - 5;
+      const placeAbove = belowSpace < popupHeight && aboveSpace > belowSpace;
+      const availableSpace = Math.max(0, placeAbove ? aboveSpace : belowSpace);
+      const maxHeight = Math.max(0, Math.min(popupHeight, availableSpace));
+      const top = placeAbove ? -maxHeight - 5 : triggerBounds.height + 5;
+      const visibleLeft = Math.max(8, scrollViewport?.left ?? 0);
+      // Leave extra breathing room when the popup is clamped at the right edge.
+      const visibleRight = Math.min(window.innerWidth - 8, (scrollViewport?.right ?? window.innerWidth) - 12);
+      const maxLeft = Math.max(visibleLeft, visibleRight - popup.offsetWidth);
+      const screenLeft = Math.max(visibleLeft, Math.min(triggerBounds.left, maxLeft));
+      const left = screenLeft - triggerBounds.left;
+      setAndroidPopupPosition({ top, left, maxHeight });
+    };
+    positionPopup();
+    window.addEventListener('resize', positionPopup);
+    document.addEventListener('scroll', positionPopup, true);
+    return () => {
+      window.removeEventListener('resize', positionPopup);
+      document.removeEventListener('scroll', positionPopup, true);
+    };
+  }, [open, isAndroid, selectingMonthYear, visibleMonth]);
 
   useEffect(() => {
     if (!selectingMonthYear || !yearListRef.current || !selectedYearRef.current) return;
@@ -108,6 +146,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
     setDraftDate(initialDateValue);
     setVisibleMonth(new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
     setSelectingMonthYear(false);
+    setAndroidPopupPosition(null);
     setOpen(true);
   };
 
@@ -137,10 +176,16 @@ const DatePicker: React.FC<DatePickerProps> = ({
 
       {open && !disabled && (
         <div
+          ref={popupRef}
           role="dialog"
           aria-label={`${ariaLabel} calendar`}
           style={{
-            position: 'absolute', zIndex: 25, top: 'calc(100% + 5px)', left: 0,
+            // Flip and constrain the Android picker within its visible scroll panel.
+            position: 'absolute', zIndex: 25,
+            ...(isAndroid && androidPopupPosition
+              ? { top: androidPopupPosition.top, left: androidPopupPosition.left, maxHeight: androidPopupPosition.maxHeight, overflowY: 'auto' as const }
+              : { top: 'calc(100% + 5px)', left: 0 }),
+            boxSizing: isAndroid ? 'border-box' : undefined,
             width: 260, maxWidth: 'min(260px, calc(100vw - 40px))',
             padding: 12, border: '1px solid #D5E2CB', borderRadius: 14,
             background: 'rgba(255,255,255,0.99)', boxShadow: '0 8px 22px rgba(35,65,25,0.16)',
